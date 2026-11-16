@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">扔掉短视频</string>
+    <string name="app_tagline">把时间，拿回来</string>
+    <string name="accessibility_service_label">扔掉短视频 · 页面计时</string>
+    <string name="accessibility_service_description">只在本机识别你选中的 5 个 App 是否停留在短视频页面，用于开始和暂停计时。不会读取或上传聊天内容，也不会联网。</string>
+    <string name="notification_channel_name">短视频超时提醒</string>
+    <string name="notification_channel_description">当天刷短视频达到额度时提醒一次</string>
+    <string name="default_reminder_title">今天的短视频额度用完了</string>
+    <string name="default_reminder_body">已经看了 {used} 分钟，限额是 {limit} 分钟。把手机放下，去做点真正想做的事吧。</string>
+</resources>

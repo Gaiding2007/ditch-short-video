@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="background">#F6F4EE</color>
+    <color name="surface">#FFFFFF</color>
+    <color name="surface_soft">#F0EEE7</color>
+    <color name="ink">#17241C</color>
+    <color name="ink_soft">#657269</color>
+    <color name="ink_faint">#929B95</color>
+    <color name="accent">#1D9A61</color>
+    <color name="accent_deep">#0E6B42</color>
+    <color name="accent_soft">#DFF1E6</color>
+    <color name="accent_softer">#EEF8F2</color>
+    <color name="warning">#B96A16</color>
+    <color name="warning_soft">#FCEEDC</color>
+    <color name="danger">#B94332</color>
+    <color name="danger_soft">#FBEAE7</color>
+    <color name="divider">#E8E4DA</color>
+    <color name="white">#FFFFFF</color>
+    <color name="heat_0">#E9EDE7</color>
+    <color name="heat_1">#CBE9D7</color>
+    <color name="heat_2">#93D5B1</color>
+    <color name="heat_3">#50B681</color>
+    <color name="heat_4">#18794E</color>
+    <color name="transparent">#00000000</color>
+</resources>
