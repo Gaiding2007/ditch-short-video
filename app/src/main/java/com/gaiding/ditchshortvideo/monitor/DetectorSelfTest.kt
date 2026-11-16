@@ -60,6 +60,30 @@ object DetectorSelfTest {
             true
         ),
         Case(
+            "抖音评论区（未输入）仍应计时",
+            page(
+                "com.ss.android.ugc.aweme",
+                "com.ss.android.ugc.aweme.MainActivity",
+                node("android.view.SurfaceView"),
+                node("android.widget.TextView", desc = "点赞"),
+                node("android.widget.TextView", desc = "评论"),
+                node("android.widget.TextView", desc = "分享"),
+                node("android.widget.TextView", text = "全部评论")
+            ),
+            true
+        ),
+        Case(
+            "快手视频画面兜底应计时",
+            page(
+                "com.smile.gifmaker",
+                "com.yxcorp.gifshow.HomeActivity",
+                node("android.view.SurfaceView"),
+                node("android.widget.TextView", text = "发现"),
+                node("android.widget.TextView", desc = "赞")
+            ),
+            true
+        ),
+        Case(
             "抖音消息页不应计时",
             page(
                 "com.ss.android.ugc.aweme",
@@ -146,6 +170,28 @@ object DetectorSelfTest {
                 "com.xingin.xhs",
                 "com.xingin.xhs.NoteDetailActivity",
                 node("android.view.SurfaceView"),
+                node("android.widget.SeekBar"),
+                node("android.widget.TextView", text = "00:12"),
+                node("android.widget.TextView", desc = "点赞")
+            ),
+            true
+        ),
+        Case(
+            "小红书视频笔记无进度条也应计时",
+            page(
+                "com.xingin.xhs",
+                "com.xingin.xhs.NoteDetailActivity",
+                node("android.view.SurfaceView"),
+                node("android.widget.TextView", desc = "点赞"),
+                node("android.widget.TextView", desc = "收藏")
+            ),
+            true
+        ),
+        Case(
+            "小红书视频笔记无画面节点也应计时",
+            page(
+                "com.xingin.xhs",
+                "com.xingin.xhs.NoteDetailActivity",
                 node("android.widget.SeekBar"),
                 node("android.widget.TextView", text = "00:12"),
                 node("android.widget.TextView", desc = "点赞")

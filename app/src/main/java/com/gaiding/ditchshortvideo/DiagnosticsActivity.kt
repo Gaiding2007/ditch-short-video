@@ -153,7 +153,7 @@ class DiagnosticsActivity : Activity() {
                 "纯逻辑用例，不需要安装抖音等 App"
             )
         )
-        val run = Ui.button(this, "运行 13 个用例", primary = true)
+        val run = Ui.button(this, "运行 17 个用例", primary = true)
         run.setOnClickListener { runSelfTest() }
         card.addView(run, topMargin(12))
         selfTestResult = Ui.text(this, "还没运行。改版后如果识别不到，可以先跑一遍。", 11f, Ui.colorOf(this, R.color.ink_soft))

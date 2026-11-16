@@ -38,8 +38,8 @@ object ShortVideoDetector {
         }
 
         return when (page.packageName) {
-            "com.ss.android.ugc.aweme" -> douyin(activity, labels, focusedEditor)
-            "com.smile.gifmaker" -> kuaishou(activity, labels, focusedEditor)
+            "com.ss.android.ugc.aweme" -> douyin(activity, labels, classes, focusedEditor)
+            "com.smile.gifmaker" -> kuaishou(activity, labels, classes, focusedEditor)
             "com.tencent.mm" -> wechatFinder(activity, labels, focusedEditor)
             "com.xingin.xhs" -> xiaohongshu(activity, labels, classes, focusedEditor)
             "tv.danmaku.bili" -> bilibili(activity, ids, focusedEditor)
@@ -47,15 +47,21 @@ object ShortVideoDetector {
         }
     }
 
-    private fun douyin(activity: String, labels: List<String>, focusedEditor: Boolean): Detection {
+    private fun douyin(
+        activity: String,
+        labels: List<String>,
+        classes: List<String>,
+        focusedEditor: Boolean
+    ): Detection {
         val simple = activity.substringAfterLast('.')
-        if (simple != "MainActivity") {
+        if (!simple.contains("MainActivity", ignoreCase = true)) {
             return Detection(false, "抖音当前不在主页面（$simple）", 10)
         }
         if (activity.contains("search", true) ||
             activity.contains("detail", true) ||
             activity.contains("friend", true) ||
-            activity.contains("profile", true)
+            activity.contains("profile", true) ||
+            activity.contains("live", true)
         ) {
             return Detection(false, "抖音当前不是推荐流", 20)
         }
@@ -64,20 +70,36 @@ object ShortVideoDetector {
         }
 
         val rail = railCategoryCount(labels)
-        if (rail < 3) {
-            return Detection(false, "缺少点赞/评论/分享互动栏（$rail 项）", 30)
+        val hasFeedHint = labels.any {
+            it.contains("推荐") || it.contains("精选") || it.contains("关注")
         }
-        return Detection(true, "抖音推荐流：互动栏 $rail 项", 80)
+        val hasVideo = hasVideoSurface(classes)
+        // The interaction rail is the strongest signal, but some builds expose
+        // only a surface and one or two labels. Keep the fallback narrow.
+        if (rail >= 2 || (hasVideo && (rail >= 1 || hasFeedHint))) {
+            return Detection(
+                true,
+                "抖音推荐流：互动栏 $rail 项${if (hasVideo) " · 视频画面" else ""}",
+                78
+            )
+        }
+        return Detection(false, "缺少点赞/评论/分享互动栏（$rail 项）", 30)
     }
 
-    private fun kuaishou(activity: String, labels: List<String>, focusedEditor: Boolean): Detection {
+    private fun kuaishou(
+        activity: String,
+        labels: List<String>,
+        classes: List<String>,
+        focusedEditor: Boolean
+    ): Detection {
         val simple = activity.substringAfterLast('.')
-        if (simple != "HomeActivity") {
+        if (!simple.contains("HomeActivity", ignoreCase = true)) {
             return Detection(false, "快手当前不在首页（$simple）", 10)
         }
         if (activity.contains("search", true) ||
             activity.contains("profile", true) ||
-            activity.contains("detail", true)
+            activity.contains("detail", true) ||
+            activity.contains("live", true)
         ) {
             return Detection(false, "快手当前不是发现流", 20)
         }
@@ -89,10 +111,15 @@ object ShortVideoDetector {
         val hasTopTab = labels.any {
             it.contains("关注") || it.contains("发现") || it.contains("精选") || it.contains("推荐")
         }
-        if (rail < 2 || !hasTopTab) {
-            return Detection(false, "缺少发现流特征（互动 $rail 项）", 30)
+        val hasVideo = hasVideoSurface(classes)
+        if (hasTopTab && (rail >= 2 || hasVideo)) {
+            return Detection(
+                true,
+                "快手发现流：互动栏 $rail 项${if (hasVideo) " · 视频画面" else ""}",
+                76
+            )
         }
-        return Detection(true, "快手发现流：互动栏 $rail 项", 78)
+        return Detection(false, "缺少发现流特征（互动 $rail 项）", 30)
     }
 
     private fun wechatFinder(activity: String, labels: List<String>, focusedEditor: Boolean): Detection {
@@ -126,7 +153,7 @@ object ShortVideoDetector {
         classes: List<String>,
         focusedEditor: Boolean
     ): Detection {
-        if (!activity.contains("NoteDetailActivity", true)) {
+        if (!activity.contains("NoteDetail", ignoreCase = true)) {
             return Detection(false, "小红书当前不在笔记详情页", 10)
         }
         if (activity.contains("Comment", true)) {
@@ -136,25 +163,25 @@ object ShortVideoDetector {
             return Detection(false, "输入框正在使用", 15)
         }
 
-        val hasVideoSurface = classes.any {
-            it.contains("videoview") ||
-                it.contains("surfaceview") ||
-                it.contains("textureview") ||
-                it.contains("playerview")
-        }
-        val hasProgress = classes.any {
-            it.contains("seekbar") || it.contains("progressbar")
-        } || labels.any { durationPattern.containsMatchIn(it) } ||
+        val hasVideoSurface = hasVideoSurface(classes)
+        // A video surface is often not exposed in the accessibility tree. A
+        // seek bar, duration text or play/pause label is video-specific enough
+        // to stand in for it; a generic ProgressBar (loading spinner) is not.
+        val hasProgress = classes.any { it.contains("seekbar") } ||
+            labels.any { durationPattern.containsMatchIn(it) } ||
             labels.any { it.contains("播放") || it.contains("暂停") }
-
-        if (!hasVideoSurface || !hasProgress) {
-            return Detection(
-                false,
-                "笔记详情但缺少视频证据（画面=$hasVideoSurface，进度=$hasProgress）",
-                25
-            )
+        val hasInteraction = labels.any {
+            it.contains("点赞") || it.contains("收藏") || it.contains("评论") || it.contains("分享")
         }
-        return Detection(true, "小红书视频笔记：画面 + 进度控件", 85)
+
+        if ((hasVideoSurface || hasProgress) && (hasInteraction || hasProgress)) {
+            return Detection(true, "小红书视频笔记：画面/进度 + 播放/互动线索", 85)
+        }
+        return Detection(
+            false,
+            "笔记详情但缺少视频证据（画面=$hasVideoSurface，进度=$hasProgress）",
+            25
+        )
     }
 
     private fun bilibili(
@@ -183,6 +210,15 @@ object ShortVideoDetector {
             if (hasTitle) "B 站故事模式：标题栏命中" else "B 站故事播放页",
             88
         )
+    }
+
+    private fun hasVideoSurface(classes: List<String>): Boolean = classes.any {
+        it.contains("surfaceview") ||
+            it.contains("textureview") ||
+            it.contains("videoview") ||
+            it.contains("playerview") ||
+            it.contains("exoplayer") ||
+            it.contains("videocontainer")
     }
 
     private fun railCategoryCount(labels: List<String>): Int {

@@ -567,7 +567,7 @@ class MainActivity : Activity() {
             setPadding(Ui.dp(this@MainActivity, 14), Ui.dp(this@MainActivity, 10),
                 Ui.dp(this@MainActivity, 14), Ui.dp(this@MainActivity, 10))
             setTextColor(Ui.colorOf(this@MainActivity, R.color.ink))
-            hint = "1 – 720"
+            hint = "1 – ${Prefs.MAX_LIMIT}"
             contentDescription = "每日最多观看分钟数"
         }
         box.addView(input, topMargin(8))
@@ -608,7 +608,7 @@ class MainActivity : Activity() {
             dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener {
                 val value = input.text.toString().toIntOrNull()
                 if (value == null || value !in Prefs.MIN_LIMIT..Prefs.MAX_LIMIT) {
-                    input.error = "请输入 1 – 720 之间的整数"
+                    input.error = "请输入 1 – ${Prefs.MAX_LIMIT} 之间的整数"
                     return@setOnClickListener
                 }
                 prefs.dailyLimitMinutes = value

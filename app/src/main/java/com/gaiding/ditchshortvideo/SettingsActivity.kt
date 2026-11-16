@@ -391,7 +391,12 @@ class SettingsActivity : Activity() {
             setSelection(text.length)
         }
         box.addView(input, topMargin(8))
-        val note = Ui.text(this, "1 – 720 分钟。每天 0 点重置。", 11f, Ui.colorOf(this, R.color.ink_soft))
+        val note = Ui.text(
+            this,
+            "1 – ${Prefs.MAX_LIMIT} 分钟。每天 0 点重置。",
+            11f,
+            Ui.colorOf(this, R.color.ink_soft)
+        )
         box.addView(note, topMargin(8))
 
         val dialog = AlertDialog.Builder(this)
@@ -404,7 +409,7 @@ class SettingsActivity : Activity() {
             dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener {
                 val value = input.text.toString().toIntOrNull()
                 if (value == null || value !in Prefs.MIN_LIMIT..Prefs.MAX_LIMIT) {
-                    input.error = "请输入 1 – 720 之间的整数"
+                    input.error = "请输入 1 – ${Prefs.MAX_LIMIT} 之间的整数"
                     return@setOnClickListener
                 }
                 prefs.dailyLimitMinutes = value
@@ -436,8 +441,12 @@ class SettingsActivity : Activity() {
 
     private fun refreshPreview() {
         if (!::preview.isInitialized) return
-        val used = max(1L, DayUtils.minutesRoundedUp(usage.todaySeconds()))
         val limit = prefs.dailyLimitMinutes.toLong()
+        // Use a realistic full-limit sample when there is no usage yet.
+        val used = usage.todaySeconds()
+            .takeIf { it > 0L }
+            ?.let { max(1L, DayUtils.minutesRoundedUp(it)) }
+            ?: limit
         val title = prefs.renderedTitle(used, limit)
         val body = prefs.renderedBody(used, limit)
         preview.text = "预览：\n$title\n$body"

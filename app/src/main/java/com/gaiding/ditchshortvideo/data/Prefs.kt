@@ -77,7 +77,7 @@ class Prefs(context: Context) {
     companion object {
         const val DEFAULT_LIMIT = 30
         const val MIN_LIMIT = 1
-        const val MAX_LIMIT = 720
+        const val MAX_LIMIT = 1440
 
         private const val KEY_LIMIT = "daily_limit_minutes"
         private const val KEY_APPS = "monitored_packages"

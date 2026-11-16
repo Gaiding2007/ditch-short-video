@@ -18,26 +18,101 @@ import java.util.concurrent.TimeUnit
 
 object ReminderNotifier {
     const val CHANNEL_ID = "short_video_limit_v1"
+    const val COUNTDOWN_CHANNEL_ID = "short_video_countdown_v1"
     const val REMINDER_ID = 1001
     const val TEST_ID = 1002
+    const val COUNTDOWN_ID = 1000
     private const val DISMISS_ACTION = "com.gaiding.ditchshortvideo.action.DISMISS_REMINDER"
     private const val TIMEOUT_MINUTES = 30L
 
     fun ensureChannel(context: Context) {
         val manager = context.getSystemService(NotificationManager::class.java)
-        if (manager.getNotificationChannel(CHANNEL_ID) != null) return
-
-        val channel = NotificationChannel(
-            CHANNEL_ID,
-            context.getString(R.string.notification_channel_name),
-            NotificationManager.IMPORTANCE_HIGH
-        ).apply {
-            description = context.getString(R.string.notification_channel_description)
-            enableVibration(true)
-            setShowBadge(true)
-            lockscreenVisibility = Notification.VISIBILITY_PUBLIC
+        if (manager.getNotificationChannel(CHANNEL_ID) == null) {
+            val channel = NotificationChannel(
+                CHANNEL_ID,
+                context.getString(R.string.notification_channel_name),
+                NotificationManager.IMPORTANCE_HIGH
+            ).apply {
+                description = context.getString(R.string.notification_channel_description)
+                enableVibration(true)
+                setShowBadge(true)
+                lockscreenVisibility = Notification.VISIBILITY_PUBLIC
+            }
+            manager.createNotificationChannel(channel)
         }
-        manager.createNotificationChannel(channel)
+
+        if (manager.getNotificationChannel(COUNTDOWN_CHANNEL_ID) == null) {
+            val countdown = NotificationChannel(
+                COUNTDOWN_CHANNEL_ID,
+                context.getString(R.string.countdown_channel_name),
+                NotificationManager.IMPORTANCE_LOW
+            ).apply {
+                description = context.getString(R.string.countdown_channel_description)
+                enableVibration(false)
+                setShowBadge(false)
+                lockscreenVisibility = Notification.VISIBILITY_PUBLIC
+            }
+            manager.createNotificationChannel(countdown)
+        }
+    }
+
+    fun showCountdown(
+        context: Context,
+        usedSeconds: Long,
+        limitMinutes: Long
+    ): Boolean {
+        ensureChannel(context)
+        if (!canPost(context)) return false
+
+        val remaining = (limitMinutes * 60L - usedSeconds).coerceAtLeast(0L)
+        val remainingMinutes = (remaining + 59L) / 60L
+        val over = remaining == 0L
+        val title = if (over) {
+            "今天额度已用完"
+        } else {
+            "计时中 · 还能看 $remainingMinutes 分钟"
+        }
+        val body = if (over) {
+            "已看 ${(usedSeconds / 60L).coerceAtLeast(1L)} 分钟，限额 $limitMinutes 分钟。"
+        } else {
+            "离开短视频页面会自动暂停。"
+        }
+
+        val openApp = PendingIntent.getActivity(
+            context,
+            10,
+            Intent(context, MainActivity::class.java).apply {
+                addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
+            },
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+
+        val builder = Notification.Builder(context, COUNTDOWN_CHANNEL_ID)
+            .setSmallIcon(R.drawable.ic_notification)
+            .setContentTitle(title)
+            .setContentText(body)
+            .setStyle(Notification.BigTextStyle().bigText(body))
+            .setContentIntent(openApp)
+            .setOngoing(true)
+            .setOnlyAlertOnce(true)
+            .setCategory(Notification.CATEGORY_STOPWATCH)
+            .setVisibility(Notification.VISIBILITY_PUBLIC)
+
+        if (over) {
+            builder.setShowWhen(false)
+        } else {
+            builder
+                .setWhen(System.currentTimeMillis() + remaining * 1000L)
+                .setShowWhen(true)
+                .setUsesChronometer(true)
+                .setChronometerCountDown(true)
+        }
+
+        return post(context, COUNTDOWN_ID, builder.build())
+    }
+
+    fun cancelCountdown(context: Context) {
+        context.getSystemService(NotificationManager::class.java).cancel(COUNTDOWN_ID)
     }
 
     fun sendLimitReminder(
@@ -101,6 +176,7 @@ object ReminderNotifier {
 
     fun cancelAll(context: Context) {
         val manager = context.getSystemService(NotificationManager::class.java)
+        manager.cancel(COUNTDOWN_ID)
         manager.cancel(REMINDER_ID)
         manager.cancel(TEST_ID)
     }

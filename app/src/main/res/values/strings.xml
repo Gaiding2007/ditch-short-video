@@ -6,6 +6,8 @@
     <string name="accessibility_service_description">只在本机识别你选中的 5 个 App 是否停留在短视频页面，用于开始和暂停计时。不会读取或上传聊天内容，也不会联网。</string>
     <string name="notification_channel_name">短视频超时提醒</string>
     <string name="notification_channel_description">当天刷短视频达到额度时提醒一次</string>
+    <string name="countdown_channel_name">计时倒计时</string>
+    <string name="countdown_channel_description">刷短视频时显示剩余额度的常驻倒计时</string>
     <string name="default_reminder_title">今天的短视频额度用完了</string>
     <string name="default_reminder_body">已经看了 {used} 分钟，限额是 {limit} 分钟。把手机放下，去做点真正想做的事吧。</string>
 </resources>

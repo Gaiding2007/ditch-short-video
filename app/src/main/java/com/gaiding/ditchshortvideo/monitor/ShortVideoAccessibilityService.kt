@@ -39,6 +39,8 @@ class ShortVideoAccessibilityService : AccessibilityService() {
     private var currentDate = DayUtils.today()
     private var lastSnapshotAt = 0L
     private var lastReminderAttempt = 0L
+    private var countdownKey: String? = null
+    private var countdownInactiveSince = 0L
     private var connected = false
     private var ticker: Runnable? = null
 
@@ -56,6 +58,7 @@ class ShortVideoAccessibilityService : AccessibilityService() {
         prefs = Prefs(this)
         usage = UsageStore(this)
         currentDate = DayUtils.today()
+        ReminderNotifier.cancelCountdown(this)
     }
 
     override fun onServiceConnected() {
@@ -103,11 +106,17 @@ class ShortVideoAccessibilityService : AccessibilityService() {
                 val cls = event.className?.toString()
                 if (pkg != foregroundPackage) {
                     foregroundPackage = pkg
-                    foregroundActivity = cls
+                    foregroundActivity = cls?.takeIf { looksLikeActivity(it, pkg) }
                     detection = null
                     positiveStreak = 0
                     sessionSeconds = 0L
-                } else if (!cls.isNullOrBlank() && cls != foregroundActivity) {
+                } else if (looksLikeActivity(cls, pkg) &&
+                    !cls.isNullOrBlank() && cls != foregroundActivity
+                ) {
+                    // A real Activity changed. Overlay windows and dialogs often
+                    // report FrameLayout/View classes; those must not erase the
+                    // Activity that is still underneath (this used to stop the
+                    // timer as soon as a comment sheet or feed swipe appeared).
                     foregroundActivity = cls
                     detection = null
                     positiveStreak = 0
@@ -157,6 +166,49 @@ class ShortVideoAccessibilityService : AccessibilityService() {
         if (!result.isShortVideo) positiveStreak = 0
     }
 
+    /**
+     * Window-state events also fire for dialogs, bottom sheets and menu windows.
+     * Their className is usually FrameLayout/View, not the Activity underneath.
+     * Treating those as a page change used to pause the timer while a comment
+     * sheet was open or while a feed was being swiped.
+     */
+    private fun looksLikeActivity(cls: String?, pkg: String): Boolean {
+        if (cls.isNullOrBlank()) return false
+        val simple = cls.substringAfterLast('.')
+        if (simple.endsWith("Activity") ||
+            simple.endsWith("UI") ||
+            simple.endsWith("Ui")
+        ) {
+            return true
+        }
+        if (!cls.startsWith(pkg)) return false
+        val viewWords = listOf("View", "Layout", "Dialog", "Popup", "Window", "Fragment", "Adapter")
+        return viewWords.none { simple.contains(it, ignoreCase = true) }
+    }
+
+    private fun syncCountdown(totalSeconds: Long) {
+        if (!prefs.notificationsEnabled || !ReminderNotifier.canPost(this)) {
+            hideCountdown()
+            return
+        }
+        val limitMinutes = prefs.dailyLimitMinutes.toLong()
+        val remainingSeconds = (limitMinutes * 60L - totalSeconds).coerceAtLeast(0L)
+        val remainingMinutes = (remainingSeconds + 59L) / 60L
+        val key = "$remainingMinutes:${remainingSeconds == 0L}"
+        if (key == countdownKey) return
+
+        if (ReminderNotifier.showCountdown(this, totalSeconds, limitMinutes)) {
+            countdownKey = key
+        }
+    }
+
+    private fun hideCountdown() {
+        if (countdownKey == null) return
+        ReminderNotifier.cancelCountdown(this)
+        countdownKey = null
+        countdownInactiveSince = 0L
+    }
+
     private fun tick() {
         if (!connected) return
         val now = SystemClock.elapsedRealtime()
@@ -166,6 +218,7 @@ class ShortVideoAccessibilityService : AccessibilityService() {
             sessionSeconds = 0L
             positiveStreak = 0
             lastReminderAttempt = -60_000L
+            countdownKey = null
         }
 
         val power = getSystemService(PowerManager::class.java)
@@ -194,7 +247,22 @@ class ShortVideoAccessibilityService : AccessibilityService() {
 
         val total = usage.todaySeconds()
         if (active) {
+            countdownInactiveSince = 0L
+            syncCountdown(total)
             maybeRemind(total, today, now)
+        } else {
+            // Keep the countdown briefly visible when the notification shade is
+            // pulled down. Opening the shade makes SystemUI the foreground app;
+            // cancelling on the same tick would make the countdown vanish before
+            // the user can read it.
+            if (countdownKey != null) {
+                if (countdownInactiveSince == 0L) countdownInactiveSince = now
+                if (now - countdownInactiveSince >= COUNTDOWN_LINGER_MS) {
+                    hideCountdown()
+                }
+            } else {
+                countdownInactiveSince = 0L
+            }
         }
 
         val reason = when {
@@ -272,6 +340,8 @@ class ShortVideoAccessibilityService : AccessibilityService() {
     override fun onInterrupt() {
         connected = false
         stopTicker()
+        hideCountdown()
+        ReminderNotifier.cancelCountdown(this)
         MonitorRuntime.update(
             MonitorRuntime.State(
                 connected = false,
@@ -285,6 +355,8 @@ class ShortVideoAccessibilityService : AccessibilityService() {
     override fun onDestroy() {
         connected = false
         stopTicker()
+        hideCountdown()
+        ReminderNotifier.cancelCountdown(this)
         unregisterScreenReceiver()
         MonitorRuntime.update(
             MonitorRuntime.State(
@@ -309,5 +381,6 @@ class ShortVideoAccessibilityService : AccessibilityService() {
         private const val SNAPSHOT_INTERVAL_MS = 450L
         private const val REQUIRED_STREAK = 2
         private const val REMINDER_RETRY_MS = 60_000L
+        private const val COUNTDOWN_LINGER_MS = 8_000L
     }
 }

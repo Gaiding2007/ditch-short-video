@@ -2,8 +2,8 @@
 
 > 仓库：<https://github.com/Gaiding2007/ditch-short-video>
 > 包名：`com.gaiding.ditchshortvideo`
-> 当前版本：`0.0.1`（versionCode `1`）
-> 当前阶段：第一版，已构建并在 Android 16 模拟器完成基础验证；真实小米设备与真实短视频 App 页面规则仍待用户实测。
+> 当前版本：`0.0.2`（versionCode `2`）
+> 当前阶段：0.0.2 已完成代码、构建与模拟器验证；真实小米设备与真实短视频 App 页面规则仍待用户实测。
 
 ---
 
@@ -23,12 +23,13 @@
    - 哔哩哔哩 `tv.danmaku.bili`（只统计故事/竖屏播放页）
 2. **严格页面识别**：只有识别到短视频页面才开始/继续计时；识别不到就不计时。宁可漏计，不误计聊天、搜索、个人主页、评论页。
 3. **暂停逻辑**：离开短视频页面、切换到别的 App、锁屏、熄屏、无障碍服务断开，立即暂停；回到短视频页面后重新开始累计。连续识别 2 秒才确认，避免滑动/过场误触。
-4. **每日总时长可自定义**：5 个 App 合并计算，默认 30 分钟，可设 1–720 分钟；每天本地时间 0 点重置。
+4. **每日总时长可自定义**：5 个 App 合并计算，默认 30 分钟，可设 1–1440 分钟；每天本地时间 0 点重置。
 5. **数据只存本地**：使用 SharedPreferences 保存每日秒数，key 为 `d_yyyy-MM-dd`，保留 400 天；无账号、无云同步、无网络权限。
 6. **超时提醒**：到额度当天只提醒一次，不强制锁机、不关 App、不拦截。提醒标题与正文可自定义，支持 `{used}` 和 `{limit}` 占位符。
-7. **小米超级岛**：优先走 Android 16 的 Promoted Ongoing（`POST_PROMOTED_NOTIFICATIONS` + `requestPromotedOngoing`），系统支持时上岛，不支持时自然回退普通通知；`miui.focus.param` 作为实验开关预埋，默认关闭。侧载应用无法保证拿到小米官方焦点通知权限。
-8. **类 GitHub 小绿点**：首页展示全年 7 行 × 周的热力图，按当天刷视频时长/额度分 5 档颜色，今天有描边，未来日期淡灰。
-9. **版本与仓库**：第一版版本号 `0.0.1`，每次改动写本日志，每个版本通过 git 提交并推送 GitHub。
+7. **计时中的常驻倒计时**：识别到短视频页面并开始计时时，发一条低优先级、ongoing 的倒计时通知；下拉通知栏时不立即消失，暂停后保留 8 秒再收起。
+8. **小米超级岛**：优先走 Android 16 的 Promoted Ongoing（`POST_PROMOTED_NOTIFICATIONS` + `requestPromotedOngoing`），系统支持时上岛，不支持时自然回退普通通知；`miui.focus.param` 作为实验开关预埋，默认关闭。侧载应用无法保证拿到小米官方焦点通知权限。
+9. **类 GitHub 小绿点**：首页展示全年 7 行 × 周的热力图，按当天刷视频时长/额度分 5 档颜色，今天有描边，未来日期淡灰。
+10. **版本与仓库**：当前版本 `0.0.2`，每次改动写本日志，每个版本通过 git 提交并推送 GitHub；APK 同时上传 GitHub Release。
 
 ### 0.3 第一版明确不做
 
@@ -58,7 +59,7 @@
 - 项目内 debug 签名：`keystore/debug.keystore`，alias `androiddebugkey`，store/key 密码均为 `android`。这是公开的调试证书，不用于正式发布。
 - 仓库带 Gradle Wrapper（Gradle `8.14`，bin 分发）；`gradle.properties` 关闭 vfs watch、Kotlin 采用 in-process 编译。当前沙箱的离线缓存缺少 AGP 的 aapt2，因此本机构建时额外传 `-Pandroid.aapt2FromMavenOverride=D:\applications\SDK\build-tools\36.1.0\aapt2.exe`；普通联网环境无需该参数。
 - `settings.gradle.kts` 用 `resolutionStrategy` 将插件坐标指向本地缓存中的 AGP/Kotlin 构件。
-- 本地没有 JUnit 缓存且外网 Maven 不可达，因此不写 `src/test` 单测；页面规则自检放在 App 内“诊断”页运行，共 13 个纯逻辑用例。
+- 本地没有 JUnit 缓存且外网 Maven 不可达，因此不写 `src/test` 单测；页面规则自检放在 App 内“诊断”页运行，共 17 个纯逻辑用例。
 - APK 输出：`app/build/outputs/apk/debug/app-debug.apk`。
 
 ### 0.5 代码地图
@@ -68,7 +69,7 @@ app/src/main/java/com/gaiding/ditchshortvideo/
 ├── DitchApp.kt                     Application，创建通知渠道
 ├── MainActivity.kt                 首页：进度环、准备步骤、App 开关、年度热力图
 ├── SettingsActivity.kt             额度、提醒文案、权限、计时规则、清空数据、关于
-├── DiagnosticsActivity.kt          运行状态、13 项页面规则自检、超级岛诊断
+├── DiagnosticsActivity.kt          运行状态、17 项页面规则自检、超级岛诊断
 ├── data/
 │   ├── MonitoredApps.kt            5 个 App 元数据
 │   ├── DayUtils.kt                 日期/时长/文案格式化
@@ -80,7 +81,7 @@ app/src/main/java/com/gaiding/ditchshortvideo/
 │   ├── SnapshotBuilder.kt          无障碍节点树抓取
 │   ├── PageSnapshot.kt             节点/页面/识别结果模型
 │   ├── MonitorRuntime.kt           运行时状态供 UI 读取
-│   └── DetectorSelfTest.kt         13 个纯逻辑用例
+│   └── DetectorSelfTest.kt         17 个纯逻辑用例
 ├── notify/
 │   ├── ReminderNotifier.kt         通知渠道、超时提醒、测试提醒、上岛 extras
 │   ├── ReminderActionReceiver.kt   通知“关闭提醒”动作
@@ -92,6 +93,51 @@ app/src/main/java/com/gaiding/ditchshortvideo/
 ---
 
 ## 1. 版本记录
+
+### 0.0.2 — 2026-11-17
+
+用户实测反馈后的修正版：放宽识别、修复评论弹层导致停表、增加计时中的常驻倒计时，并把每日上限提高到 24 小时。
+
+#### 功能与修复
+
+- 每日上限从 `1–720` 分钟改为 `1–1440` 分钟；`Prefs.MAX_LIMIT`、首页/Settings 提示与输入校验同步；`versionCode 2`、`versionName 0.0.2`。
+- 修复评论区/弹层导致停表：新增 `looksLikeActivity(cls, pkg)`，只有真正的 Activity 变化才重置页面；`FrameLayout`、`PopupWindow`、`Dialog`、`Fragment` 等窗口事件不再清空底层 Activity。
+- 抖音：`MainActivity` 下允许“互动栏 ≥2 项”或“视频画面 + 互动/推荐标签”计时，仍排除搜索、详情、朋友、个人页、直播。
+- 快手：`HomeActivity` 下“顶部关注/发现/精选/推荐 + 互动 ≥2 或视频画面”计时；修复刷feed时被 `FrameLayout` 事件打断。
+- 小红书：`NoteDetailActivity` 下允许“视频画面、SeekBar、时长文本、播放/暂停标签”之一作为视频证据，再结合互动；不再强制要求无障碍树里出现 SurfaceView。
+- 新增计时中的常驻倒计时通知：`countdown` 渠道（LOW）、ID `1000`、`CATEGORY_STOPWATCH`、ongoing/onlyAlertOnce、`setWhen` + `setUsesChronometer(true)` + `setChronometerCountDown(true)`；标题“计时中 · 还能看 N 分钟”，正文“离开短视频页面会自动暂停。”；额度用完时改为“今天额度已用完”。
+- 倒计时暂停后保留 `COUNTDOWN_LINGER_MS=8_000L` 再取消，避免下拉通知栏（SystemUI 成为前台）时通知瞬间消失；`onInterrupt/onDestroy` 立即取消。
+- 设置页预览在使用量为 0 时改用 `limit` 作为示例，不再显示“已经看了 1 分钟”。
+- 自检新增 4 个场景（抖音评论区、快手画面兜底、小红书无进度条、小红书无画面但有视频进度），共 **17** 个用例；诊断页按钮与文案同步。
+
+#### 验证
+
+- `:app:assembleDebug` 成功（约 20s，37 tasks），APK `app/build/outputs/apk/debug/app-debug.apk`，1,011,884 字节。
+- 模拟器安装/冷启动/设置/诊断页正常；无障碍、通知、电池白名单三项全绿。
+- 诊断页“运行 17 个用例”结果 **17/17**。
+- 启动本地伪抖音测试包后，倒计时通知 ID `1000` 正常 post；`dumpsys notification` 确认 channel `short_video_countdown_v1`、importance 2、flags `ONGOING_EVENT|ONLY_ALERT_ONCE`、`android.chronometerCountDown=true`。
+- 下拉通知栏可看到“计时中 · 还能看 30 分钟 / 离开短视频页面会自动暂停。”，停留超过 8 秒后自动收起；离开短视频 App 后倒计时取消。
+- 真实超时提醒（ID `1001`）与 `PROMOTED_ONGOING` 路径沿用 0.0.1 验证结果。
+
+#### 已知限制
+
+- 真实抖音/快手/小红书仍未在小米 15 Pro 上逐页确认；本次放宽了规则，需要用户用诊断页反馈实际 Activity/识别原因，再继续收紧/补充。
+- 评论区仍是“按页面证据计时”：评论弹层不再清空 Activity，但如果视频画面/互动栏完全被遮住，识别会暂停；这是待讨论的行为，不在本版强行改变。
+- 删后台/强行停止仍可能让 MIUI 停掉无障碍服务；本版只保留电池白名单引导，未加入前台保活服务。
+- 倒计时通知属于“静默”通知（LOW 渠道），不会响铃/震动；如需更醒目要另做提醒方式。
+- 仍使用调试签名；Release APK 也使用该证书，仅适合侧载。
+
+#### 0.0.2 仍暂不做
+
+- 评论区“继续计时/暂停”的最终策略（先讨论再定）。
+- 无障碍被系统杀死后的自动恢复、前台保活服务。
+- 分屏/小窗精确识别、更多 App、自定义页面规则、云同步、正式签名/商店上架。
+
+#### 推荐下一步
+
+1. 用真机诊断页收集 5 个 App 的实际 Activity/节点，做一轮规则校准。
+2. 讨论并实现评论区策略（建议“短暂查看继续计时，长时间停留暂停”）。
+3. 评估轻量前台保活服务 + 无障碍断开提示，作为 0.0.3 的后台可靠性改进。
 
 ### 0.0.1 — 2026-11-16
 
