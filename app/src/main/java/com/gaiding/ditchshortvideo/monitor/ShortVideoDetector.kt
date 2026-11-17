@@ -24,6 +24,15 @@ object ShortVideoDetector {
 
     fun needsActivityFallback(pkg: String): Boolean = pkg in structuralFallbackPackages
 
+    // Only these two have a structural detector that is stronger than a stale
+    // Activity name. Clearing the Activity on every overlay is harmful for
+    // Douyin/Kuaishou: ColorOS reports transient FrameLayout/View windows while
+    // the feed is still on screen, and clearing MainActivity sends the detector
+    // down the weaker "Activity missing" path.
+    private val activityClearPackages = setOf("com.xingin.xhs", "tv.danmaku.bili")
+
+    fun shouldClearActivityOnOverlay(pkg: String): Boolean = pkg in activityClearPackages
+
     fun evaluate(page: PageSnapshot): Detection {
         if (page.nodes.isEmpty()) {
             return Detection(false, "页面结构为空", 0)

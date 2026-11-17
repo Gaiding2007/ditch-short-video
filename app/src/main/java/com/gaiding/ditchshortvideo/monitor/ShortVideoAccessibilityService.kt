@@ -47,6 +47,8 @@ class ShortVideoAccessibilityService : AccessibilityService() {
     private var wasCounting = false
     private var lastPage: PageSnapshot? = null
     private var lastLoggedActive = false
+    private var overlayPackage: String? = null
+    private var overlaySince = 0L
     private var connected = false
     private var ticker: Runnable? = null
 
@@ -113,7 +115,31 @@ class ShortVideoAccessibilityService : AccessibilityService() {
         when (event.eventType) {
             AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED -> {
                 val cls = event.className?.toString()
+                val eventNow = SystemClock.elapsedRealtime()
+                if (pkg != foregroundPackage && isSystemOverlay(pkg, cls)) {
+                    // ColorOS emits transient SystemUI/IME window events while
+                    // the feed is still visible. Switching foreground on those
+                    // events resets the grace window and causes visible
+                    // stop/start flicker. Hold the current app for up to
+                    // PAGE_GRACE_MS; the tick promotes the overlay if it stays
+                    // on screen longer than that.
+                    if (overlayPackage != pkg) {
+                        overlayPackage = pkg
+                        overlaySince = eventNow
+                        MonitorLog.add(
+                            "系统覆盖窗口=${MonitoredApps.labelFor(pkg) ?: pkg}，暂不切换"
+                        )
+                    }
+                    return
+                }
+                if (pkg == foregroundPackage && overlaySince != 0L) {
+                    overlayPackage = null
+                    overlaySince = 0L
+                    MonitorLog.add("系统覆盖窗口结束，继续识别")
+                }
                 if (pkg != foregroundPackage) {
+                    overlayPackage = null
+                    overlaySince = 0L
                     resetGrace()
                     foregroundPackage = pkg
                     foregroundActivity = cls?.takeIf { looksLikeActivity(it, pkg) }
@@ -139,7 +165,7 @@ class ShortVideoAccessibilityService : AccessibilityService() {
                     MonitorLog.add("Activity 变化=${cls.substringAfterLast('.')}")
                 } else if (!cls.isNullOrBlank() &&
                     !looksLikeActivity(cls, pkg) &&
-                    ShortVideoDetector.needsActivityFallback(pkg) &&
+                    ShortVideoDetector.shouldClearActivityOnOverlay(pkg) &&
                     foregroundActivity != null
                 ) {
                     // Bilibili/Xiaohongshu can open a full-screen video before
@@ -245,6 +271,13 @@ class ShortVideoAccessibilityService : AccessibilityService() {
         }
     }
 
+    private fun isSystemOverlay(pkg: String, cls: String?): Boolean {
+        if (pkg == "com.android.systemui") return true
+        if (cls?.contains("SoftInputWindow", ignoreCase = true) == true) return true
+        val lower = pkg.lowercase()
+        return lower.contains("inputmethod") || lower.contains("input_oppo")
+    }
+
     private fun hideCountdown() {
         if (countdownKey == null) return
         ReminderNotifier.cancelCountdown(this)
@@ -262,6 +295,8 @@ class ShortVideoAccessibilityService : AccessibilityService() {
         lastActivePackage = null
         graceStartedAt = 0L
         wasCounting = false
+        overlayPackage = null
+        overlaySince = 0L
     }
 
     private fun tick() {
@@ -275,6 +310,23 @@ class ShortVideoAccessibilityService : AccessibilityService() {
             lastReminderAttempt = -60_000L
             countdownKey = null
             resetGrace()
+        }
+
+        // A real shade/IME may stay on screen. Keep the current app's grace
+        // alive for a short overlay, then promote the overlay to foreground so
+        // the timer does not keep running while the feed is covered.
+        if (overlaySince != 0L && now - overlaySince >= PAGE_GRACE_MS) {
+            val overlay = overlayPackage
+            overlayPackage = null
+            overlaySince = 0L
+            if (overlay != null) {
+                foregroundPackage = overlay
+                foregroundActivity = null
+                detection = null
+                positiveStreak = 0
+                resetGrace()
+                MonitorLog.add("系统覆盖窗口超过 ${PAGE_GRACE_MS / 1000} 秒，暂停计时")
+            }
         }
 
         val power = getSystemService(PowerManager::class.java)
@@ -499,7 +551,7 @@ class ShortVideoAccessibilityService : AccessibilityService() {
         private const val REQUIRED_STREAK = 2
         private const val REMINDER_RETRY_MS = 60_000L
         private const val COMMENT_GRACE_MS = 30_000L
-        private const val PAGE_GRACE_MS = 2_000L
-        private const val COUNTDOWN_LINGER_MS = 2_000L
+        private const val PAGE_GRACE_MS = 3_000L
+        private const val COUNTDOWN_LINGER_MS = 3_000L
     }
 }
