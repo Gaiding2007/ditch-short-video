@@ -442,19 +442,24 @@ class MainActivity : Activity() {
 
     private fun refreshPreparation(force: Boolean) {
         val accessibility = SystemStatus.accessibilityEnabled(this)
+        val serviceConnected = MonitorRuntime.state.connected
         val notifications = SystemStatus.notificationsAllowed(this)
         val battery = SystemStatus.batteryUnrestricted(this)
-        val signature = "$accessibility|$notifications|$battery"
+        val signature = "$accessibility|$serviceConnected|$notifications|$battery"
         if (!force && signature == preparationSignature) return
         preparationSignature = signature
 
         preparationContainer.removeAllViews()
         addPreparationStep(
             index = 1,
-            title = "开启页面识别",
-            description = "无障碍权限。只在本机读取页面结构，用来判断是不是短视频。",
-            done = accessibility,
-            actionLabel = "去开启",
+            title = if (accessibility && !serviceConnected) "页面识别未连接" else "开启页面识别",
+            description = if (accessibility && !serviceConnected) {
+                "系统里显示已开启，但服务没有连上。点这里重新打开。"
+            } else {
+                "无障碍权限。只在本机读取页面结构，用来判断是不是短视频。"
+            },
+            done = accessibility && serviceConnected,
+            actionLabel = if (accessibility && !serviceConnected) "重新连接" else "去开启",
             action = { SystemStatus.openAccessibilitySettings(this) }
         )
         addPreparationStep(
@@ -473,7 +478,7 @@ class MainActivity : Activity() {
             actionLabel = "去设置",
             action = { SystemStatus.openBatterySettings(this) }
         )
-        if (accessibility && notifications && battery) {
+        if (accessibility && serviceConnected && notifications && battery) {
             val done = Ui.text(
                 this,
                 "都准备好了。打开任意一个监控 App 的短视频页面试试。",

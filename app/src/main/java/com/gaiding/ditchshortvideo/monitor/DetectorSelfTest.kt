@@ -286,6 +286,53 @@ object DetectorSelfTest {
             false
         ),
         Case(
+            "抖音 Activity 缺失但互动栏完整应计时",
+            page(
+                "com.ss.android.ugc.aweme",
+                "",
+                node("android.view.SurfaceView"),
+                node("android.widget.TextView", text = "推荐"),
+                node("android.widget.TextView", desc = "点赞"),
+                node("android.widget.TextView", desc = "评论"),
+                node("android.widget.TextView", desc = "分享")
+            ),
+            true
+        ),
+        Case(
+            "抖音 Activity 缺失且证据弱不应计时",
+            page(
+                "com.ss.android.ugc.aweme",
+                "",
+                node("android.view.SurfaceView"),
+                node("android.widget.TextView", text = "推荐"),
+                node("android.widget.TextView", desc = "点赞")
+            ),
+            false
+        ),
+        Case(
+            "快手 Activity 缺失但发现流特征完整应计时",
+            page(
+                "com.smile.gifmaker",
+                "",
+                node("android.view.SurfaceView"),
+                node("android.widget.TextView", text = "发现"),
+                node("android.widget.TextView", desc = "赞"),
+                node("android.widget.TextView", desc = "评论")
+            ),
+            true
+        ),
+        Case(
+            "快手 Activity 缺失且无顶部发现标签不应计时",
+            page(
+                "com.smile.gifmaker",
+                "",
+                node("android.view.SurfaceView"),
+                node("android.widget.TextView", desc = "赞"),
+                node("android.widget.TextView", desc = "评论")
+            ),
+            false
+        ),
+        Case(
             "输入框聚焦时不应计时",
             page(
                 "com.ss.android.ugc.aweme",

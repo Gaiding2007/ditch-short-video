@@ -11,10 +11,16 @@ package com.gaiding.ditchshortvideo.monitor
 object ShortVideoDetector {
     private val durationPattern = Regex("\\b\\d{1,2}:\\d{2}\\b")
 
-    // These two apps sometimes expose the page before a usable Activity name
-    // arrives. Their detectors have structural fallbacks, so a blank Activity
-    // is not an automatic veto; the page still needs real video evidence.
-    private val structuralFallbackPackages = setOf("com.xingin.xhs", "tv.danmaku.bili")
+    // Some OEM accessibility stacks report the first window of a page as
+    // FrameLayout/View (or with no Activity at all). The detectors for these
+    // apps carry a strict structural fallback, so a blank Activity is not an
+    // automatic veto; the page still needs video/feed evidence.
+    private val structuralFallbackPackages = setOf(
+        "com.ss.android.ugc.aweme",
+        "com.smile.gifmaker",
+        "com.xingin.xhs",
+        "tv.danmaku.bili"
+    )
 
     fun needsActivityFallback(pkg: String): Boolean = pkg in structuralFallbackPackages
 
@@ -86,14 +92,15 @@ object ShortVideoDetector {
         focusedEditor: Boolean
     ): Detection {
         val simple = activity.substringAfterLast('.')
-        if (!simple.contains("MainActivity", ignoreCase = true)) {
+        val activityKnown = activity.isNotBlank()
+        if (activityKnown && !simple.contains("MainActivity", ignoreCase = true)) {
             return Detection(false, "抖音当前不在主页面（$simple）", 10)
         }
-        if (activity.contains("search", true) ||
-            activity.contains("detail", true) ||
-            activity.contains("friend", true) ||
-            activity.contains("profile", true) ||
-            activity.contains("live", true)
+        if (activityKnown && (activity.contains("search", true) ||
+                activity.contains("detail", true) ||
+                activity.contains("friend", true) ||
+                activity.contains("profile", true) ||
+                activity.contains("live", true))
         ) {
             return Detection(false, "抖音当前不是推荐流", 20)
         }
@@ -106,6 +113,21 @@ object ShortVideoDetector {
             it.contains("推荐") || it.contains("精选") || it.contains("关注")
         }
         val hasVideo = hasVideoSurface(classes)
+
+        if (!activityKnown) {
+            // OnePlus/ColorOS can report the first feed window as
+            // FrameLayout/View. Require a stronger combination than the known
+            // MainActivity path so a messages/profile page cannot sneak in.
+            if (hasFeedHint && (rail >= 3 || (hasVideo && rail >= 2))) {
+                return Detection(
+                    true,
+                    "抖音推荐流（Activity 缺失兜底）：互动栏 $rail 项${if (hasVideo) " · 视频画面" else ""}",
+                    66
+                )
+            }
+            return Detection(false, "Activity 为空，等待更强的推荐流证据（互动 $rail 项）", 25)
+        }
+
         // The interaction rail is the strongest signal, but some builds expose
         // only a surface and one or two labels. Keep the fallback narrow.
         if (rail >= 2 || (hasVideo && (rail >= 1 || hasFeedHint))) {
@@ -125,13 +147,14 @@ object ShortVideoDetector {
         focusedEditor: Boolean
     ): Detection {
         val simple = activity.substringAfterLast('.')
-        if (!simple.contains("HomeActivity", ignoreCase = true)) {
+        val activityKnown = activity.isNotBlank()
+        if (activityKnown && !simple.contains("HomeActivity", ignoreCase = true)) {
             return Detection(false, "快手当前不在首页（$simple）", 10)
         }
-        if (activity.contains("search", true) ||
-            activity.contains("profile", true) ||
-            activity.contains("detail", true) ||
-            activity.contains("live", true)
+        if (activityKnown && (activity.contains("search", true) ||
+                activity.contains("profile", true) ||
+                activity.contains("detail", true) ||
+                activity.contains("live", true))
         ) {
             return Detection(false, "快手当前不是发现流", 20)
         }
@@ -144,6 +167,18 @@ object ShortVideoDetector {
             it.contains("关注") || it.contains("发现") || it.contains("精选") || it.contains("推荐")
         }
         val hasVideo = hasVideoSurface(classes)
+
+        if (!activityKnown) {
+            if (hasTopTab && (rail >= 3 || (hasVideo && rail >= 2))) {
+                return Detection(
+                    true,
+                    "快手发现流（Activity 缺失兜底）：互动栏 $rail 项${if (hasVideo) " · 视频画面" else ""}",
+                    64
+                )
+            }
+            return Detection(false, "Activity 为空，等待发现流特征（互动 $rail 项）", 25)
+        }
+
         if (hasTopTab && (rail >= 2 || hasVideo)) {
             return Detection(
                 true,

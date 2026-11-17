@@ -21,6 +21,7 @@ import android.widget.Switch
 import android.widget.TextView
 import com.gaiding.ditchshortvideo.data.Prefs
 import com.gaiding.ditchshortvideo.monitor.DetectorSelfTest
+import com.gaiding.ditchshortvideo.monitor.MonitorLog
 import com.gaiding.ditchshortvideo.monitor.MonitorRuntime
 import com.gaiding.ditchshortvideo.notify.ReminderNotifier
 import com.gaiding.ditchshortvideo.notify.XiaomiIsland
@@ -32,6 +33,7 @@ class DiagnosticsActivity : Activity() {
     private lateinit var prefs: Prefs
     private lateinit var statusPill: TextView
     private lateinit var runtimeText: TextView
+    private lateinit var eventText: TextView
     private lateinit var permissionContainer: LinearLayout
     private lateinit var selfTestResult: TextView
     private lateinit var islandInfo: TextView
@@ -87,6 +89,7 @@ class DiagnosticsActivity : Activity() {
 
         content.addView(buildHeader())
         content.addView(buildRuntimeCard(), topMargin(16))
+        content.addView(buildEventCard(), topMargin(14))
         content.addView(buildPermissionCard(), topMargin(14))
         content.addView(buildSelfTestCard(), topMargin(14))
         content.addView(buildIslandCard(), topMargin(14))
@@ -133,6 +136,21 @@ class DiagnosticsActivity : Activity() {
         runtimeText = Ui.text(this, "", 12f, Ui.colorOf(this, R.color.ink_soft))
         runtimeText.setLineSpacing(Ui.dp(this, 3).toFloat(), 1.2f)
         card.addView(runtimeText, topMargin(12))
+        return card
+    }
+
+    private fun buildEventCard(): View {
+        val card = Ui.card(this)
+        card.addView(
+            Ui.sectionHeader(
+                this,
+                "最近事件",
+                "只记录页面/计时状态，不记录页面文字"
+            )
+        )
+        eventText = Ui.text(this, "暂无事件", 10f, Ui.colorOf(this, R.color.ink_soft))
+        eventText.setLineSpacing(Ui.dp(this, 2).toFloat(), 1.2f)
+        card.addView(eventText, topMargin(8))
         return card
     }
 
@@ -291,6 +309,10 @@ class DiagnosticsActivity : Activity() {
             appendLine("屏幕：${if (state.screenInteractive) "亮" else "灭"} · 锁屏：${if (state.locked) "是" else "否"}")
             append("更新：$updatedAgo")
         }
+        val recent = MonitorLog.dump().lines().takeLast(8).joinToString("\n")
+        if (::eventText.isInitialized) {
+            eventText.text = recent.ifBlank { "暂无事件" }
+        }
     }
 
     private fun refreshPermissions() {
@@ -381,7 +403,10 @@ class DiagnosticsActivity : Activity() {
                 appendLine("规则自检：未运行")
             }
             appendLine("超级岛：")
-            append(XiaomiIsland.describe(this@DiagnosticsActivity))
+            appendLine(XiaomiIsland.describe(this@DiagnosticsActivity))
+            appendLine()
+            appendLine("最近事件：")
+            append(MonitorLog.dump())
         }
         val clipboard = getSystemService(ClipboardManager::class.java)
         clipboard.setPrimaryClip(ClipData.newPlainText("ditch-short-video diagnostics", text))

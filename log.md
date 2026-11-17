@@ -2,8 +2,8 @@
 
 > 仓库：<https://github.com/Gaiding2007/ditch-short-video>
 > 包名：`com.gaiding.ditchshortvideo`
-> 当前版本：`0.1.0`（versionCode `10`）
-> 当前阶段：0.1.0 首个 release 签名内测版；功能沿用 0.0.5，切换正式发布证书，准备超小范围内测。
+> 当前版本：`0.1.1`（versionCode `11`）
+> 当前阶段：0.1.1 内测修复版；针对一加 ColorOS 的 Activity 为空/通知图标断续问题，增加页面兜底、事件日志和连接状态区分。
 
 ---
 
@@ -30,7 +30,7 @@
 8. **小米超级岛**：优先走 Android 16 的 Promoted Ongoing（`POST_PROMOTED_NOTIFICATIONS` + `requestPromotedOngoing`），系统支持时上岛，不支持时自然回退普通通知；`miui.focus.param` 作为实验开关预埋，默认关闭。侧载应用无法保证拿到小米官方焦点通知权限。
 9. **类 GitHub 小绿点**：首页展示全年 7 行 × 周的热力图，按当天刷视频时长/额度分 5 档颜色，今天有描边，未来日期淡灰。
 10. **无障碍断开提醒**：页面识别服务被系统中断或销毁时，发一条可点击的通知，点按直接跳到系统无障碍设置；重新连接后自动取消。
-11. **版本与仓库**：当前版本 `0.1.0`，每次改动写本日志，每个版本通过 git 提交并推送 GitHub；APK 同时上传 GitHub Release。
+11. **版本与仓库**：当前版本 `0.1.1`，每次改动写本日志，每个版本通过 git 提交并推送 GitHub；APK 同时上传 GitHub Release。
 
 ### 0.3 第一版明确不做
 
@@ -61,7 +61,7 @@
 - 调试签名：`keystore/debug.keystore`，alias `androiddebugkey`，store/key 密码均为 `android`。这是公开的调试证书，只用于本地调试，不对外分发。
 - 仓库带 Gradle Wrapper（Gradle `8.14`，bin 分发）；`gradle.properties` 关闭 vfs watch、Kotlin 采用 in-process 编译。当前沙箱的离线缓存缺少 AGP 的 aapt2，因此本机构建时额外传 `-Pandroid.aapt2FromMavenOverride=D:\applications\SDK\build-tools\36.1.0\aapt2.exe`；普通联网环境无需该参数。
 - `settings.gradle.kts` 用 `resolutionStrategy` 将插件坐标指向本地缓存中的 AGP/Kotlin 构件。
-- 本地没有 JUnit 缓存且外网 Maven 不可达，因此不写 `src/test` 单测；页面规则自检放在 App 内“诊断”页运行，共 22 个纯逻辑用例。
+- 本地没有 JUnit 缓存且外网 Maven 不可达，因此不写 `src/test` 单测；页面规则自检放在 App 内“诊断”页运行，共 26 个纯逻辑用例。
 - APK 输出：debug 为 `app/build/outputs/apk/debug/app-debug.apk`；release 为 `app/build/outputs/apk/release/app-release.apk`。0.1.0 起对外分发使用 release APK。
 
 ### 0.5 代码地图
@@ -71,7 +71,7 @@ app/src/main/java/com/gaiding/ditchshortvideo/
 ├── DitchApp.kt                     Application，创建通知渠道
 ├── MainActivity.kt                 首页：进度环、准备步骤、App 开关、年度热力图
 ├── SettingsActivity.kt             额度、提醒文案、权限、计时规则、清空数据、关于
-├── DiagnosticsActivity.kt          运行状态、22 项页面规则自检、超级岛诊断
+├── DiagnosticsActivity.kt          运行状态、最近事件、26 项页面规则自检、超级岛诊断
 ├── data/
 │   ├── MonitoredApps.kt            5 个 App 元数据
 │   ├── DayUtils.kt                 日期/时长/文案格式化
@@ -83,7 +83,8 @@ app/src/main/java/com/gaiding/ditchshortvideo/
 │   ├── SnapshotBuilder.kt          无障碍节点树抓取
 │   ├── PageSnapshot.kt             节点/页面/识别结果模型
 │   ├── MonitorRuntime.kt           运行时状态供 UI 读取
-│   └── DetectorSelfTest.kt         22 个纯逻辑用例
+│   ├── MonitorLog.kt               最近页面/计时事件，诊断页复制
+│   └── DetectorSelfTest.kt         26 个纯逻辑用例
 ├── notify/
 │   ├── ReminderNotifier.kt         通知渠道、超时提醒、测试提醒、上岛 extras
 │   ├── ReminderActionReceiver.kt   通知“关闭提醒”动作
@@ -95,6 +96,58 @@ app/src/main/java/com/gaiding/ditchshortvideo/
 ---
 
 ## 1. 版本记录
+
+### 0.1.1 — 2026-11-17
+
+内测反馈修复版：一加 ColorOS 上动画/页面事件里的 Activity 可能为空，导致抖音/快手识别失败；同时增加最近事件日志，方便定位“计时图标断续、记录偏少”。
+
+#### 用户反馈
+
+- 一加 PLC110 / Android 16 内测同学：无障碍、通知、省电白名单、服务连接都正常，但计时中为 false；诊断时前台是 `com.android.systemui`，Activity 为 `—`，原因“等待打开短视频 App”。
+- 顶栏计时图标断断续续，刷得久了会消失；最终记录时间远低于实际。
+- 规则自检 22/22 通过，说明纯规则用例本身没有失败；问题更可能在真机事件/Activity 获取或页面节点抓取。
+
+#### 功能与修复
+
+- **抖音/快手 Activity 为空兜底**：`ShortVideoDetector` 的兜底包集合扩展到抖音、快手；当 Activity 为空或不是 Activity 类时，只要页面同时具备视频画面 + 明确推荐/发现类标签与互动证据，也按短视频页计时。
+  - 抖音：推荐/发现类标签 + 视频画面 + 至少 2 类互动（点赞/评论/分享/收藏）。
+  - 快手：发现/精选/推荐/关注类标签 + 视频画面 + 至少 2 类互动。
+  - 仍然排除搜索结果、详情/个人/直播、输入框聚焦等页面；普通视频详情不会仅凭“有视频画面”误计。
+- **最近事件日志**：新增 `monitor/MonitorLog.kt`，在内存里保留最近 80 条页面/计时事件；只记录时间、App、Activity 类名、切换/识别/计时动作，**不记录页面文字**。
+  - 诊断页新增“最近事件”卡片，显示最近 8 条；复制诊断信息时一并复制完整日志。
+  - 用于区分“服务被系统杀掉”“Activity 为空”“识别规则不命中”“只差一次确认”等不同原因。
+- **连接状态区分**：首页准备步骤不再只看系统里的无障碍开关，而是要求服务真正连接；已开启但服务未连接时显示“页面识别未连接”，按钮变为“重新连接”，避免“显示已开启但其实没计时”。
+- 新增 4 个纯逻辑用例：抖音 Activity 为空但强证据、快手 Activity 为空但强证据、抖音搜索页不应误计、快手个人页不应误计；总计 26 项。
+- 版本提升到 `versionCode 11` / `versionName 0.1.1`；0.1.0 的 release 签名保持不变，可直接覆盖升级。
+
+#### 验证
+
+- `:app:assembleDebug` 成功（29s），`:app:assembleRelease` 成功（21s）；release APK `app/build/outputs/apk/release/app-release.apk`，731,360 字节。
+- 在 API 36 模拟器上覆盖安装 0.1.1 release 包，版本显示 `v0.1.1`；诊断页“运行 26 个用例”结果 **26/26**。
+- 真实一加设备尚未复测；0.1.1 是否解决“Activity 为空”导致的少计，需要内测同学安装后复现并复制诊断信息。
+
+#### 已知限制
+
+- 一加问题目前只能确认“Activity 为空/事件缺失”这一条路径已兜底；如果 ColorOS 在后台冻结了无障碍进程，App 仍然无法自行恢复，只能依赖系统的无障碍开关和断开提醒。
+- 事件日志只保留进程内最近 80 条；服务重启/进程被杀后，之前的日志会丢失。要看“被杀前发生了什么”，需要系统日志或复现后立刻复制。
+- Activity 为空兜底要求页面结构足够强；如果一加上的节点树也被裁剪，仍可能漏计。下一步需要真实一加日志确认。
+- 没有加入自动重连无障碍、前台保活服务；这两项涉及系统权限和耗电，暂不擅自扩大范围。
+
+#### 本版仍不做
+
+- 无障碍服务自动重开、前台常驻保活、开机自启。
+- 新 App、自定义规则、云同步、详细统计。
+- 应用商店上架、软著材料。
+
+#### 推荐下一步
+
+1. 让一加内测同学安装 0.1.1，重现“刷久了图标消失/记录偏少”，然后到诊断页点“复制诊断信息”发回来；重点看“最近事件”里是 Activity=空、节点抓取失败，还是服务断开。
+2. 如果日志显示服务频繁断开，再评估前台服务/断开自动提醒；如果只是 Activity 为空，继续放宽对应 App 的结构规则。
+3. 收集 2–3 台不同品牌的内测日志后，再决定是否把“最近事件”升级成可导出的诊断文件。
+
+#### 发布信息
+
+- GitHub Release：待上传。
 
 ### 0.0.5 — 2026-11-17
 

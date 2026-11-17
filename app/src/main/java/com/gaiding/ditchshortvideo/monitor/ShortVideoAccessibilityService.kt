@@ -46,6 +46,7 @@ class ShortVideoAccessibilityService : AccessibilityService() {
     private var graceStartedAt = 0L
     private var wasCounting = false
     private var lastPage: PageSnapshot? = null
+    private var lastLoggedActive = false
     private var connected = false
     private var ticker: Runnable? = null
 
@@ -84,6 +85,7 @@ class ShortVideoAccessibilityService : AccessibilityService() {
 
         connected = true
         lastReminderAttempt = -60_000L
+        MonitorLog.add("无障碍服务已连接")
         ReminderNotifier.cancelServiceStopped(this)
         registerScreenReceiver()
         MonitorRuntime.update(
@@ -119,6 +121,9 @@ class ShortVideoAccessibilityService : AccessibilityService() {
                     positiveStreak = 0
                     sessionSeconds = 0L
                     pageRetryUntil = SystemClock.elapsedRealtime() + 8_000L
+                    MonitorLog.add(
+                        "切到 ${MonitoredApps.labelFor(pkg) ?: pkg}；页面类=${cls?.substringAfterLast('.') ?: "空"}"
+                    )
                 } else if (looksLikeActivity(cls, pkg) &&
                     !cls.isNullOrBlank() && cls != foregroundActivity
                 ) {
@@ -131,6 +136,7 @@ class ShortVideoAccessibilityService : AccessibilityService() {
                     positiveStreak = 0
                     sessionSeconds = 0L
                     pageRetryUntil = SystemClock.elapsedRealtime() + 8_000L
+                    MonitorLog.add("Activity 变化=${cls.substringAfterLast('.')}")
                 } else if (!cls.isNullOrBlank() &&
                     !looksLikeActivity(cls, pkg) &&
                     ShortVideoDetector.needsActivityFallback(pkg) &&
@@ -144,6 +150,7 @@ class ShortVideoAccessibilityService : AccessibilityService() {
                     detection = null
                     positiveStreak = 0
                     pageRetryUntil = SystemClock.elapsedRealtime() + 8_000L
+                    MonitorLog.add("页面类非 Activity，按结构识别兜底")
                 }
 
                 if (prefs.isMonitored(pkg)) {
@@ -171,6 +178,9 @@ class ShortVideoAccessibilityService : AccessibilityService() {
         lastSnapshotAt = SystemClock.elapsedRealtime()
         val root = runCatching { rootInActiveWindow }.getOrNull()
         if (root == null) {
+            if (detection?.isShortVideo == true) {
+                MonitorLog.add("页面读取失败：无障碍树为空")
+            }
             detection = Detection(false, "暂时读不到页面内容", 0)
             positiveStreak = 0
             return
@@ -178,6 +188,9 @@ class ShortVideoAccessibilityService : AccessibilityService() {
 
         val rootPackage = root.packageName?.toString()
         if (!rootPackage.isNullOrBlank() && rootPackage != pkg) {
+            if (detection?.isShortVideo == true) {
+                MonitorLog.add("页面读取失败：根节点属于 $rootPackage")
+            }
             detection = Detection(false, "前台页面已经切换", 0)
             positiveStreak = 0
             return
@@ -186,7 +199,13 @@ class ShortVideoAccessibilityService : AccessibilityService() {
         val page = SnapshotBuilder.capture(root, pkg, activity)
         lastPage = page
         val result = ShortVideoDetector.evaluate(page)
+        val changed = detection?.isShortVideo != result.isShortVideo
         detection = result
+        if (changed) {
+            MonitorLog.add(
+                "识别=${if (result.isShortVideo) "计时" else "暂停"}：${result.reason}"
+            )
+        }
         if (!result.isShortVideo) positiveStreak = 0
     }
 
@@ -356,6 +375,13 @@ class ShortVideoAccessibilityService : AccessibilityService() {
             else -> "识别到短视频页面"
         }
 
+        if (active != lastLoggedActive) {
+            if (active || lastLoggedActive) {
+                MonitorLog.add(if (active) "开始计时" else "暂停计时：$reason")
+            }
+            lastLoggedActive = active
+        }
+
         MonitorRuntime.update(
             MonitorRuntime.State(
                 connected = true,
@@ -418,6 +444,7 @@ class ShortVideoAccessibilityService : AccessibilityService() {
 
     override fun onInterrupt() {
         val wasConnected = connected
+        MonitorLog.add("无障碍服务被系统中断")
         connected = false
         stopTicker()
         resetGrace()
@@ -438,6 +465,7 @@ class ShortVideoAccessibilityService : AccessibilityService() {
 
     override fun onDestroy() {
         val wasConnected = connected
+        MonitorLog.add("无障碍服务已销毁")
         connected = false
         stopTicker()
         resetGrace()
