@@ -147,7 +147,8 @@ app/src/main/java/com/gaiding/ditchshortvideo/
 
 #### 发布信息
 
-- GitHub Release：待上传。
+- GitHub Release：`v0.1.1`（release id `448686522`），APK asset id `759223871`，731,360 字节，下载 <https://github.com/Gaiding2007/ditch-short-video/releases/download/v0.1.1/app-release.apk>。
+- 0.1.1 与 0.1.0 使用同一 release 证书，可直接覆盖升级，不必卸载。
 
 ### 0.0.5 — 2026-11-17
 
