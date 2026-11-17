@@ -139,6 +139,11 @@ app/src/main/java/com/gaiding/ditchshortvideo/
 2. 若 3 秒仍不够，再评估按“滑动/评论/覆盖窗口”分场景的动态宽限，而不是继续全局加长。
 3. 若日志显示服务被系统杀死，再讨论前台服务保活；不要在没有证据前增加常驻通知。
 
+#### 发布信息
+
+- GitHub Release：`v0.1.2`（release id `448712734`），APK asset id `759293600`，731,772 字节，下载 <https://github.com/Gaiding2007/ditch-short-video/releases/download/v0.1.2/app-release.apk>。
+- 0.1.2 与 0.1.1 使用同一 release 证书，可直接覆盖升级，不必卸载。
+
 ### 0.1.1 — 2026-11-17
 
 内测反馈修复版：一加 ColorOS 上动画/页面事件里的 Activity 可能为空，导致抖音/快手识别失败；同时增加最近事件日志，方便定位“计时图标断续、记录偏少”。
