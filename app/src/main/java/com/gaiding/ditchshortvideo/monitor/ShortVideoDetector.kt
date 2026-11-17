@@ -11,13 +11,17 @@ package com.gaiding.ditchshortvideo.monitor
 object ShortVideoDetector {
     private val durationPattern = Regex("\\b\\d{1,2}:\\d{2}\\b")
 
+    // These two apps sometimes expose the page before a usable Activity name
+    // arrives. Their detectors have structural fallbacks, so a blank Activity
+    // is not an automatic veto; the page still needs real video evidence.
+    private val structuralFallbackPackages = setOf("com.xingin.xhs", "tv.danmaku.bili")
+
     fun evaluate(page: PageSnapshot): Detection {
         if (page.nodes.isEmpty()) {
             return Detection(false, "页面结构为空", 0)
         }
-
         val activity = page.activityName.orEmpty()
-        if (activity.isBlank()) {
+        if (activity.isBlank() && page.packageName !in structuralFallbackPackages) {
             return Detection(false, "还没有拿到当前页面名称", 0)
         }
 
@@ -42,9 +46,35 @@ object ShortVideoDetector {
             "com.smile.gifmaker" -> kuaishou(activity, labels, classes, focusedEditor)
             "com.tencent.mm" -> wechatFinder(activity, labels, focusedEditor)
             "com.xingin.xhs" -> xiaohongshu(activity, labels, classes, focusedEditor)
-            "tv.danmaku.bili" -> bilibili(activity, ids, focusedEditor)
+            "tv.danmaku.bili" -> bilibili(activity, labels, classes, ids, focusedEditor)
             else -> Detection(false, "未适配的 App", 0)
         }
+    }
+
+    /**
+     * A short-video feed often opens comments as a dialog or Activity. That
+     * page is not a video, but treating it as "left the app" made the timer
+     * stop while the user was still one tap away from the feed. Only give the
+     * long grace period to pages that actually look like comments.
+     */
+    fun isCommentLike(page: PageSnapshot): Boolean {
+        val activity = page.activityName.orEmpty()
+        if (activity.contains("Comment", ignoreCase = true)) return true
+
+        val labels = page.nodes.flatMap { node ->
+            listOf(node.text, node.contentDescription)
+        }.filter { it.isNotBlank() }
+        val markers = listOf(
+            "全部评论", "评论区", "说点什么", "留下你的评论",
+            "发送评论", "条评论", "展开更多回复", "回复 @"
+        )
+        if (labels.any { label -> markers.any { label.contains(it) } }) return true
+
+        val focusedCommentEditor = page.nodes.any {
+            it.editable && it.focused &&
+                (it.text.contains("评论") || it.contentDescription.contains("评论"))
+        }
+        return focusedCommentEditor
     }
 
     private fun douyin(
@@ -153,11 +183,9 @@ object ShortVideoDetector {
         classes: List<String>,
         focusedEditor: Boolean
     ): Detection {
-        if (!activity.contains("NoteDetail", ignoreCase = true)) {
-            return Detection(false, "小红书当前不在笔记详情页", 10)
-        }
-        if (activity.contains("Comment", true)) {
-            return Detection(false, "小红书当前是评论页", 20)
+        val excluded = listOf("Comment", "Search", "Login", "Chat", "Profile")
+        if (excluded.any { activity.contains(it, true) }) {
+            return Detection(false, "小红书当前不是视频播放页", 20)
         }
         if (focusedEditor) {
             return Detection(false, "输入框正在使用", 15)
@@ -170,31 +198,45 @@ object ShortVideoDetector {
         val hasProgress = classes.any { it.contains("seekbar") } ||
             labels.any { durationPattern.containsMatchIn(it) } ||
             labels.any { it.contains("播放") || it.contains("暂停") }
-        val hasInteraction = labels.any {
-            it.contains("点赞") || it.contains("收藏") || it.contains("评论") || it.contains("分享")
-        }
+        val rail = railCategoryCount(labels)
+        val videoEvidence = hasVideoSurface || hasProgress
 
-        if ((hasVideoSurface || hasProgress) && (hasInteraction || hasProgress)) {
-            return Detection(true, "小红书视频笔记：画面/进度 + 播放/互动线索", 85)
+        // Xiaohongshu has a dedicated full-screen video feed as well as video
+        // notes. Do not require NoteDetailActivity: the video feed often stays
+        // on IndexActivityV2 (or reports no Activity at all).
+        val videoPage = activity.isBlank() ||
+            activity.contains("NoteDetail", true) ||
+            activity.contains("Video", true) ||
+            activity.contains("Player", true) ||
+            activity.contains("Feed", true) ||
+            activity.contains("IndexActivityV2", true)
+
+        if (videoEvidence && videoPage &&
+            (rail >= 2 || (hasProgress && rail >= 1) || (hasVideoSurface && hasProgress))
+        ) {
+            return Detection(
+                true,
+                "小红书视频页：${if (hasVideoSurface) "视频画面" else "播放进度"} + 互动 $rail 项",
+                80
+            )
         }
-        return Detection(
-            false,
-            "笔记详情但缺少视频证据（画面=$hasVideoSurface，进度=$hasProgress）",
-            25
-        )
+        if (!videoEvidence) {
+            return Detection(
+                false,
+                "当前没有视频画面或播放进度，按图文/普通页面处理",
+                25
+            )
+        }
+        return Detection(false, "疑似小红书视频页，但缺少互动/播放证据", 30)
     }
 
     private fun bilibili(
         activity: String,
+        labels: List<String>,
+        classes: List<String>,
         ids: List<String>,
         focusedEditor: Boolean
     ): Detection {
-        val isStory =
-            activity.contains("StoryVideoActivity", true) ||
-                activity.contains("StoryTransparentActivity", true)
-        if (!isStory) {
-            return Detection(false, "B 站当前不是故事/竖屏播放页", 10)
-        }
         val excluded = listOf(
             "VideoDetailsActivity", "UnitedBizDetailsActivity", "MainActivityV2", "LiveRoom"
         )
@@ -204,12 +246,30 @@ object ShortVideoDetector {
         if (focusedEditor) {
             return Detection(false, "输入框正在使用", 15)
         }
+
         val hasTitle = ids.any { it.contains("story_title") }
-        return Detection(
-            true,
-            if (hasTitle) "B 站故事模式：标题栏命中" else "B 站故事播放页",
-            88
-        )
+        val hasStoryClass = classes.any { it.contains("story") }
+        val isStoryActivity =
+            activity.contains("StoryVideoActivity", true) ||
+                activity.contains("StoryTransparentActivity", true)
+        val hasVideo = hasVideoSurface(classes)
+        val rail = railCategoryCount(labels)
+
+        // Bilibili sometimes reports a FrameLayout (or nothing) when the story
+        // page first opens; the story_title id appears before the Activity name
+        // does. Treat that id as strong evidence, but do not let a generic
+        // video page with likes/comments pass as a story.
+        if (!hasTitle && !hasStoryClass && !isStoryActivity) {
+            return Detection(false, "B 站当前不是故事/竖屏播放页", 10)
+        }
+        if (hasVideo || hasTitle || rail >= 2) {
+            return Detection(
+                true,
+                "B 站故事模式：${if (hasTitle) "标题栏" else "播放页"}命中",
+                88
+            )
+        }
+        return Detection(false, "B 站故事页缺少播放/互动证据", 30)
     }
 
     private fun hasVideoSurface(classes: List<String>): Boolean = classes.any {

@@ -41,6 +41,10 @@ class ShortVideoAccessibilityService : AccessibilityService() {
     private var lastReminderAttempt = 0L
     private var countdownKey: String? = null
     private var countdownInactiveSince = 0L
+    private var lastActivePackage: String? = null
+    private var graceStartedAt = 0L
+    private var wasCounting = false
+    private var lastPage: PageSnapshot? = null
     private var connected = false
     private var ticker: Runnable? = null
 
@@ -49,6 +53,7 @@ class ShortVideoAccessibilityService : AccessibilityService() {
             if (intent == null) return
             if (intent.action == Intent.ACTION_SCREEN_OFF) {
                 positiveStreak = 0
+                resetGrace()
             }
         }
     }
@@ -105,6 +110,7 @@ class ShortVideoAccessibilityService : AccessibilityService() {
             AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED -> {
                 val cls = event.className?.toString()
                 if (pkg != foregroundPackage) {
+                    resetGrace()
                     foregroundPackage = pkg
                     foregroundActivity = cls?.takeIf { looksLikeActivity(it, pkg) }
                     detection = null
@@ -161,6 +167,7 @@ class ShortVideoAccessibilityService : AccessibilityService() {
         }
 
         val page = SnapshotBuilder.capture(root, pkg, activity)
+        lastPage = page
         val result = ShortVideoDetector.evaluate(page)
         detection = result
         if (!result.isShortVideo) positiveStreak = 0
@@ -209,6 +216,18 @@ class ShortVideoAccessibilityService : AccessibilityService() {
         countdownInactiveSince = 0L
     }
 
+    private fun graceSecondsLeft(now: Long, graceMs: Long): Long {
+        if (graceStartedAt == 0L) return 0L
+        val elapsed = (now - graceStartedAt).coerceAtLeast(0L)
+        return ((graceMs - elapsed + 999L) / 1000L).coerceAtLeast(1L)
+    }
+
+    private fun resetGrace() {
+        lastActivePackage = null
+        graceStartedAt = 0L
+        wasCounting = false
+    }
+
     private fun tick() {
         if (!connected) return
         val now = SystemClock.elapsedRealtime()
@@ -219,6 +238,7 @@ class ShortVideoAccessibilityService : AccessibilityService() {
             positiveStreak = 0
             lastReminderAttempt = -60_000L
             countdownKey = null
+            resetGrace()
         }
 
         val power = getSystemService(PowerManager::class.java)
@@ -238,7 +258,31 @@ class ShortVideoAccessibilityService : AccessibilityService() {
         } else {
             positiveStreak++
         }
-        val active = eligible && positiveStreak >= REQUIRED_STREAK
+        val strictlyActive = eligible && positiveStreak >= REQUIRED_STREAK
+        val sameApp = pkg != null && pkg == lastActivePackage
+
+        if (!interactive || locked || pkg == null || !monitored || !sameApp) {
+            resetGrace()
+        }
+
+        var active = strictlyActive
+        var countingByGrace = false
+        val commentPage = lastPage?.let(ShortVideoDetector::isCommentLike) == true
+        val graceMs = if (commentPage) COMMENT_GRACE_MS else PAGE_GRACE_MS
+        if (strictlyActive) {
+            lastActivePackage = pkg
+            wasCounting = true
+            graceStartedAt = 0L
+        } else if (wasCounting && sameApp && interactive && !locked && monitored) {
+            if (graceStartedAt == 0L) graceStartedAt = now
+            if (now - graceStartedAt < graceMs) {
+                active = true
+                countingByGrace = true
+            } else {
+                wasCounting = false
+                graceStartedAt = 0L
+            }
+        }
 
         if (active) {
             usage.addSeconds(today, 1L)
@@ -270,6 +314,12 @@ class ShortVideoAccessibilityService : AccessibilityService() {
             locked -> "手机已锁屏，计时暂停"
             pkg == null -> "等待前台应用"
             !monitored -> "等待打开短视频 App"
+            countingByGrace ->
+                if (commentPage) {
+                    "评论区宽限计时（剩余 ${graceSecondsLeft(now, graceMs)} 秒）"
+                } else {
+                    "页面切换宽限计时（剩余 ${graceSecondsLeft(now, graceMs)} 秒）"
+                }
             currentDetection == null || !currentDetection.isShortVideo ->
                 currentDetection?.reason ?: "正在观察页面"
             positiveStreak < REQUIRED_STREAK ->
@@ -340,6 +390,7 @@ class ShortVideoAccessibilityService : AccessibilityService() {
     override fun onInterrupt() {
         connected = false
         stopTicker()
+        resetGrace()
         hideCountdown()
         ReminderNotifier.cancelCountdown(this)
         MonitorRuntime.update(
@@ -355,6 +406,7 @@ class ShortVideoAccessibilityService : AccessibilityService() {
     override fun onDestroy() {
         connected = false
         stopTicker()
+        resetGrace()
         hideCountdown()
         ReminderNotifier.cancelCountdown(this)
         unregisterScreenReceiver()
@@ -381,6 +433,8 @@ class ShortVideoAccessibilityService : AccessibilityService() {
         private const val SNAPSHOT_INTERVAL_MS = 450L
         private const val REQUIRED_STREAK = 2
         private const val REMINDER_RETRY_MS = 60_000L
-        private const val COUNTDOWN_LINGER_MS = 8_000L
+        private const val COMMENT_GRACE_MS = 30_000L
+        private const val PAGE_GRACE_MS = 2_000L
+        private const val COUNTDOWN_LINGER_MS = 2_000L
     }
 }

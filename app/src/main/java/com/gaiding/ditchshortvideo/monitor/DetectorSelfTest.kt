@@ -26,6 +26,8 @@ object DetectorSelfTest {
         val ok: Boolean get() = failures.isEmpty()
     }
 
+    val caseCount: Int get() = buildCases().size
+
     fun run(): Report {
         val cases = buildCases()
         val failures = ArrayList<Failure>()
@@ -210,6 +212,28 @@ object DetectorSelfTest {
             false
         ),
         Case(
+            "小红书视频流（非笔记详情）应计时",
+            page(
+                "com.xingin.xhs",
+                "com.xingin.xhs.IndexActivityV2",
+                node("android.view.SurfaceView"),
+                node("android.widget.TextView", desc = "点赞"),
+                node("android.widget.TextView", desc = "评论")
+            ),
+            true
+        ),
+        Case(
+            "小红书图文信息流不应计时",
+            page(
+                "com.xingin.xhs",
+                "com.xingin.xhs.IndexActivityV2",
+                node("android.widget.ImageView"),
+                node("android.widget.TextView", desc = "点赞"),
+                node("android.widget.TextView", desc = "评论")
+            ),
+            false
+        ),
+        Case(
             "B 站故事模式应计时",
             page(
                 "tv.danmaku.bili",
@@ -218,6 +242,29 @@ object DetectorSelfTest {
                 node("android.view.SurfaceView")
             ),
             true
+        ),
+        Case(
+            "B 站故事页 Activity 缺失也应靠标题识别",
+            page(
+                "tv.danmaku.bili",
+                "",
+                node("android.widget.TextView", id = "tv.danmaku.bili:id/story_title"),
+                node("android.view.SurfaceView"),
+                node("android.widget.TextView", desc = "点赞")
+            ),
+            true
+        ),
+        Case(
+            "B 站普通视频缺少故事标题不应计时",
+            page(
+                "tv.danmaku.bili",
+                "",
+                node("android.view.SurfaceView"),
+                node("android.widget.TextView", desc = "点赞"),
+                node("android.widget.TextView", desc = "评论"),
+                node("android.widget.TextView", desc = "分享")
+            ),
+            false
         ),
         Case(
             "B 站普通视频详情不应计时",
