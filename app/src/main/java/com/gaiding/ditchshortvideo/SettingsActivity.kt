@@ -72,7 +72,7 @@ class SettingsActivity : Activity() {
         content.addView(buildDataCard(), topMargin(14))
         content.addView(buildAboutCard(), topMargin(14))
         content.addView(
-            Ui.text(this, "v0.0.1 · 数据只在本机", 10f, Ui.colorOf(this, R.color.ink_faint))
+            Ui.text(this, "v${BuildConfig.VERSION_NAME} · 数据只在本机", 10f, Ui.colorOf(this, R.color.ink_faint))
                 .apply { gravity = Gravity.CENTER_HORIZONTAL },
             topMargin(18)
         )

@@ -16,6 +16,8 @@ object ShortVideoDetector {
     // is not an automatic veto; the page still needs real video evidence.
     private val structuralFallbackPackages = setOf("com.xingin.xhs", "tv.danmaku.bili")
 
+    fun needsActivityFallback(pkg: String): Boolean = pkg in structuralFallbackPackages
+
     fun evaluate(page: PageSnapshot): Detection {
         if (page.nodes.isEmpty()) {
             return Detection(false, "页面结构为空", 0)
@@ -238,7 +240,7 @@ object ShortVideoDetector {
         focusedEditor: Boolean
     ): Detection {
         val excluded = listOf(
-            "VideoDetailsActivity", "UnitedBizDetailsActivity", "MainActivityV2", "LiveRoom"
+            "VideoDetailsActivity", "UnitedBizDetailsActivity", "LiveRoom"
         )
         if (excluded.any { activity.contains(it, true) }) {
             return Detection(false, "B 站当前不是故事模式", 20)

@@ -222,7 +222,7 @@ class DiagnosticsActivity : Activity() {
         card.addView(Ui.sectionHeader(this, "设备与版本", "复制给开发者，方便定位规则问题"))
         val info = Ui.text(
             this,
-            "v0.0.1\n" +
+            "v${BuildConfig.VERSION_NAME}\n" +
                 "${Build.MANUFACTURER} ${Build.MODEL}\n" +
                 "Android ${Build.VERSION.RELEASE}（API ${Build.VERSION.SDK_INT}）\n" +
                 "包名 ${packageName}",
@@ -362,7 +362,7 @@ class DiagnosticsActivity : Activity() {
         val state = MonitorRuntime.state
         val report = lastReport
         val text = buildString {
-            appendLine("扔掉短视频 v0.0.1 诊断")
+            appendLine("扔掉短视频 v${BuildConfig.VERSION_NAME} 诊断")
             appendLine("${Build.MANUFACTURER} ${Build.MODEL} · Android ${Build.VERSION.RELEASE} (API ${Build.VERSION.SDK_INT})")
             appendLine("无障碍：${SystemStatus.accessibilityEnabled(this@DiagnosticsActivity)}")
             appendLine("通知：${SystemStatus.notificationsAllowed(this@DiagnosticsActivity)}")

@@ -267,6 +267,16 @@ object DetectorSelfTest {
             false
         ),
         Case(
+            "B 站故事页 Activity 残留主界面也应靠标题识别",
+            page(
+                "tv.danmaku.bili",
+                "tv.danmaku.bili.MainActivityV2",
+                node("android.widget.TextView", id = "tv.danmaku.bili:id/story_title"),
+                node("android.view.SurfaceView")
+            ),
+            true
+        ),
+        Case(
             "B 站普通视频详情不应计时",
             page(
                 "tv.danmaku.bili",

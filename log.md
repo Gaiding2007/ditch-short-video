@@ -2,8 +2,8 @@
 
 > 仓库：<https://github.com/Gaiding2007/ditch-short-video>
 > 包名：`com.gaiding.ditchshortvideo`
-> 当前版本：`0.0.3`（versionCode `3`）
-> 当前阶段：0.0.3 修复 B 站/小红书识别与评论宽限，缩短页面切换后的倒计时 linger；待真机复测。
+> 当前版本：`0.0.4`（versionCode `4`）
+> 当前阶段：0.0.4 修复 B 站冷启动首次识别、版本号显示改为 BuildConfig；待真机复测。
 
 ---
 
@@ -29,7 +29,7 @@
 7. **计时中的常驻倒计时**：识别到短视频页面并开始计时时，发一条低优先级、ongoing 的倒计时通知；下拉通知栏时不立即消失，暂停后保留 2 秒再收起。
 8. **小米超级岛**：优先走 Android 16 的 Promoted Ongoing（`POST_PROMOTED_NOTIFICATIONS` + `requestPromotedOngoing`），系统支持时上岛，不支持时自然回退普通通知；`miui.focus.param` 作为实验开关预埋，默认关闭。侧载应用无法保证拿到小米官方焦点通知权限。
 9. **类 GitHub 小绿点**：首页展示全年 7 行 × 周的热力图，按当天刷视频时长/额度分 5 档颜色，今天有描边，未来日期淡灰。
-10. **版本与仓库**：当前版本 `0.0.3`，每次改动写本日志，每个版本通过 git 提交并推送 GitHub；APK 同时上传 GitHub Release。
+10. **版本与仓库**：当前版本 `0.0.4`，每次改动写本日志，每个版本通过 git 提交并推送 GitHub；APK 同时上传 GitHub Release。
 
 ### 0.3 第一版明确不做
 
@@ -59,7 +59,7 @@
 - 项目内 debug 签名：`keystore/debug.keystore`，alias `androiddebugkey`，store/key 密码均为 `android`。这是公开的调试证书，不用于正式发布。
 - 仓库带 Gradle Wrapper（Gradle `8.14`，bin 分发）；`gradle.properties` 关闭 vfs watch、Kotlin 采用 in-process 编译。当前沙箱的离线缓存缺少 AGP 的 aapt2，因此本机构建时额外传 `-Pandroid.aapt2FromMavenOverride=D:\applications\SDK\build-tools\36.1.0\aapt2.exe`；普通联网环境无需该参数。
 - `settings.gradle.kts` 用 `resolutionStrategy` 将插件坐标指向本地缓存中的 AGP/Kotlin 构件。
-- 本地没有 JUnit 缓存且外网 Maven 不可达，因此不写 `src/test` 单测；页面规则自检放在 App 内“诊断”页运行，共 21 个纯逻辑用例。
+- 本地没有 JUnit 缓存且外网 Maven 不可达，因此不写 `src/test` 单测；页面规则自检放在 App 内“诊断”页运行，共 22 个纯逻辑用例。
 - APK 输出：`app/build/outputs/apk/debug/app-debug.apk`。
 
 ### 0.5 代码地图
@@ -69,7 +69,7 @@ app/src/main/java/com/gaiding/ditchshortvideo/
 ├── DitchApp.kt                     Application，创建通知渠道
 ├── MainActivity.kt                 首页：进度环、准备步骤、App 开关、年度热力图
 ├── SettingsActivity.kt             额度、提醒文案、权限、计时规则、清空数据、关于
-├── DiagnosticsActivity.kt          运行状态、21 项页面规则自检、超级岛诊断
+├── DiagnosticsActivity.kt          运行状态、22 项页面规则自检、超级岛诊断
 ├── data/
 │   ├── MonitoredApps.kt            5 个 App 元数据
 │   ├── DayUtils.kt                 日期/时长/文案格式化
@@ -81,7 +81,7 @@ app/src/main/java/com/gaiding/ditchshortvideo/
 │   ├── SnapshotBuilder.kt          无障碍节点树抓取
 │   ├── PageSnapshot.kt             节点/页面/识别结果模型
 │   ├── MonitorRuntime.kt           运行时状态供 UI 读取
-│   └── DetectorSelfTest.kt         21 个纯逻辑用例
+│   └── DetectorSelfTest.kt         22 个纯逻辑用例
 ├── notify/
 │   ├── ReminderNotifier.kt         通知渠道、超时提醒、测试提醒、上岛 extras
 │   ├── ReminderActionReceiver.kt   通知“关闭提醒”动作
@@ -93,6 +93,60 @@ app/src/main/java/com/gaiding/ditchshortvideo/
 ---
 
 ## 1. 版本记录
+
+### 0.0.4 — 2026-11-17
+
+针对真机复测的 B 站冷启动问题，以及“版本号仍显示 v0.0.1”的显示缺陷。
+
+#### 用户反馈
+
+- B 站：直接打开视频仍不计时；必须先点开一次评论区再关掉，才开始计时。
+- 软件内版本号仍显示 `v0.0.1`。
+- 询问 APK 签名是怎么做的。
+- 下一版版本号 `0.0.4`。
+
+#### 功能与修复
+
+- **B 站冷启动修复**：
+  - 去掉 `bilibili()` 对 `MainActivityV2` 的硬排除；故事页只要出现 `tv.danmaku.bili:id/story_title`（或 Story 类 Activity/类名线索）并有视频画面，就按故事模式计时，不再等 Activity 名稳定。普通 `VideoDetailsActivity`、`UnitedBizDetailsActivity`、直播仍排除。
+  - 新增 `ShortVideoDetector.needsActivityFallback(pkg)`，小红书/B 站允许 Activity 暂时为空或残留。
+  - 新增 `pageRetryUntil`：进入/切换页面后的 8 秒内，如果识别尚未成功，每秒主动重抓一次节点树。解决“首次打开时无障碍事件早于可读节点树到达，必须开评论区触发下一次事件”的根因。
+  - 非 Activity 的窗口事件对小红书/B 站会清掉过期 Activity，避免 `MainActivityV2` 把真实故事页挡掉。
+- **版本号显示修复**：首页 footer、设置页 footer、诊断页复制文本/标题共 4 处硬编码 `v0.0.1` 改为 `BuildConfig.VERSION_NAME`；`versionCode 4`、`versionName 0.0.4`。
+- 自检新增“B 站故事页 Activity 残留主界面也应靠标题识别”，共 **22** 个用例。
+
+#### 签名说明
+
+- 工程使用 `keystore/debug.keystore`，alias `androiddebugkey`，store/key 密码均为 `android`；Gradle 的 `debugLocal` signingConfig 指向它。所有 APK 都用这张调试证书签名。
+- 证书 SHA-256：`7A:4F:D0:FC:F7:60:75:03:B7:2D:B4:5E:82:5A:03:A9:0D:0A:78:10:91:E2:A4:59:8B:71:DF:CD:B8:CA:4A:38`；SHA-1：`35:90:22:CB:14:37:F6:B8:8E:36:FE:10:EA:42:FE:60:ED:70:7D:D3`。
+- 调试证书只适合侧载和自用，不适合应用商店；正式发布需要新建 release keystore、备份密码，并确保后续升级使用同一证书。
+
+#### 验证
+
+- `:app:assembleDebug` 成功（约 23s，37 tasks），APK `app/build/outputs/apk/debug/app-debug.apk`，1,006,474 字节；`versionCode 4`、`versionName 0.0.4`。
+- 模拟器安装并冷启动成功；无障碍、通知、电池白名单三项全绿。
+- 诊断页“运行 22 个用例”结果 **22/22**。
+- 启动本地伪抖音测试包后倒计时通知 ID `1000` 正常，usage 从 0 增长到 7 秒，确认计时链路没有回归。
+- 首页 footer 与设置页 footer 均显示 `v0.0.4`。
+
+#### 已知限制
+
+- B 站真实页面的 Activity/节点仍未逐页采集；本次按“故事标题 + 视频画面 + 冷启动重试”修复，若 B 站改版仍可能失效。需要用户在真机复测，失败时从诊断页复制 Activity/原因。
+- 为避免漏计，B 站/小红书在页面切换后的 8 秒内会每秒抓一次节点树，短时耗电会略增；识别成功后即停止重试。
+- 评论区 30 秒宽限、后台无障碍被系统杀死、正式签名/上架仍未解决。
+
+#### 0.0.4 仍暂不做
+
+- 正式 release 签名、应用商店上架、隐私政策。
+- 前台保活服务、无障碍断开自动恢复。
+- 更多 App、自定义页面规则、详细统计、云同步。
+- 评论区“长时间停留自动暂停”的复杂策略。
+
+#### 推荐下一步
+
+1. 真机复测 B 站“首次打开视频”和“退出再进”两条路径；若仍漏计，记录诊断页的 Activity 与识别原因。
+2. 评估轻量前台服务/无障碍断开通知，作为 0.0.5 的后台可靠性方案。
+3. 确定正式签名方案：生成 release keystore，离线备份，不再使用 debug 证书发版。
 
 ### 0.0.3 — 2026-11-17
 

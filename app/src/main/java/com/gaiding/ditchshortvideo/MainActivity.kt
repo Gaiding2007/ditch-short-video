@@ -372,7 +372,7 @@ class MainActivity : Activity() {
                 .apply { gravity = Gravity.CENTER_HORIZONTAL }
         )
         box.addView(
-            Ui.text(this, "v0.0.1", 10f, Ui.colorOf(this, R.color.ink_faint))
+            Ui.text(this, "v${BuildConfig.VERSION_NAME}", 10f, Ui.colorOf(this, R.color.ink_faint))
                 .apply { gravity = Gravity.CENTER_HORIZONTAL },
             topMargin(5)
         )

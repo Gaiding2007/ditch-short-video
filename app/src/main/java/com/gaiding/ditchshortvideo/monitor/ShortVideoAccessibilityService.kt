@@ -38,6 +38,7 @@ class ShortVideoAccessibilityService : AccessibilityService() {
     private var sessionSeconds = 0L
     private var currentDate = DayUtils.today()
     private var lastSnapshotAt = 0L
+    private var pageRetryUntil = 0L
     private var lastReminderAttempt = 0L
     private var countdownKey: String? = null
     private var countdownInactiveSince = 0L
@@ -116,6 +117,7 @@ class ShortVideoAccessibilityService : AccessibilityService() {
                     detection = null
                     positiveStreak = 0
                     sessionSeconds = 0L
+                    pageRetryUntil = SystemClock.elapsedRealtime() + 8_000L
                 } else if (looksLikeActivity(cls, pkg) &&
                     !cls.isNullOrBlank() && cls != foregroundActivity
                 ) {
@@ -127,6 +129,20 @@ class ShortVideoAccessibilityService : AccessibilityService() {
                     detection = null
                     positiveStreak = 0
                     sessionSeconds = 0L
+                    pageRetryUntil = SystemClock.elapsedRealtime() + 8_000L
+                } else if (!cls.isNullOrBlank() &&
+                    !looksLikeActivity(cls, pkg) &&
+                    ShortVideoDetector.needsActivityFallback(pkg) &&
+                    foregroundActivity != null
+                ) {
+                    // Bilibili/Xiaohongshu can open a full-screen video before
+                    // a real Activity name is reported. Do not keep a stale
+                    // MainActivity: clear it and let the structural detector
+                    // decide from story_title/video evidence instead.
+                    foregroundActivity = null
+                    detection = null
+                    positiveStreak = 0
+                    pageRetryUntil = SystemClock.elapsedRealtime() + 8_000L
                 }
 
                 if (prefs.isMonitored(pkg)) {
@@ -247,6 +263,18 @@ class ShortVideoAccessibilityService : AccessibilityService() {
         val locked = keyguard.isKeyguardLocked
         val pkg = foregroundPackage
         val monitored = prefs.isMonitored(pkg)
+
+        // A cold page often emits its first window event before the
+        // accessibility tree is readable. Retry for a few seconds instead of
+        // waiting for the user to open a comment sheet.
+        if (interactive && !locked && monitored &&
+            now < pageRetryUntil &&
+            detection?.isShortVideo != true &&
+            now - lastSnapshotAt >= 1_000L
+        ) {
+            pkg?.let { captureAndEvaluate(it, foregroundActivity) }
+        }
+
         val currentDetection = detection
         val eligible = interactive &&
             !locked &&
