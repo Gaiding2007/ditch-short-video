@@ -128,6 +128,7 @@ app/src/main/java/com/gaiding/ditchshortvideo/
 - 诊断页“运行 22 个用例”结果 **22/22**。
 - 启动本地伪抖音测试包后倒计时通知 ID `1000` 正常，usage 从 0 增长到 7 秒，确认计时链路没有回归。
 - 首页 footer 与设置页 footer 均显示 `v0.0.4`。
+- GitHub Release：`v0.0.4`（release id `448466048`），APK asset id `758604534`，下载 <https://github.com/Gaiding2007/ditch-short-video/releases/download/v0.0.4/app-debug.apk>。
 
 #### 已知限制
 
