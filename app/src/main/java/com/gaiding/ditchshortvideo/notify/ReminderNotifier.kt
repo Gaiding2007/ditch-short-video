@@ -10,6 +10,7 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import android.graphics.drawable.Icon
 import android.os.Build
+import android.provider.Settings
 import com.gaiding.ditchshortvideo.MainActivity
 import com.gaiding.ditchshortvideo.R
 import com.gaiding.ditchshortvideo.data.Prefs
@@ -19,9 +20,11 @@ import java.util.concurrent.TimeUnit
 object ReminderNotifier {
     const val CHANNEL_ID = "short_video_limit_v1"
     const val COUNTDOWN_CHANNEL_ID = "short_video_countdown_v1"
+    const val SERVICE_CHANNEL_ID = "service_status_v1"
     const val REMINDER_ID = 1001
     const val TEST_ID = 1002
     const val COUNTDOWN_ID = 1000
+    const val SERVICE_ID = 1100
     private const val DISMISS_ACTION = "com.gaiding.ditchshortvideo.action.DISMISS_REMINDER"
     private const val TIMEOUT_MINUTES = 30L
 
@@ -53,6 +56,20 @@ object ReminderNotifier {
                 lockscreenVisibility = Notification.VISIBILITY_PUBLIC
             }
             manager.createNotificationChannel(countdown)
+        }
+
+        if (manager.getNotificationChannel(SERVICE_CHANNEL_ID) == null) {
+            val service = NotificationChannel(
+                SERVICE_CHANNEL_ID,
+                context.getString(R.string.service_channel_name),
+                NotificationManager.IMPORTANCE_DEFAULT
+            ).apply {
+                description = context.getString(R.string.service_channel_description)
+                enableVibration(false)
+                setShowBadge(true)
+                lockscreenVisibility = Notification.VISIBILITY_PUBLIC
+            }
+            manager.createNotificationChannel(service)
         }
     }
 
@@ -113,6 +130,39 @@ object ReminderNotifier {
 
     fun cancelCountdown(context: Context) {
         context.getSystemService(NotificationManager::class.java).cancel(COUNTDOWN_ID)
+    }
+
+    fun showServiceStopped(context: Context): Boolean {
+        ensureChannel(context)
+        if (!canPost(context)) return false
+
+        val openSettings = PendingIntent.getActivity(
+            context,
+            12,
+            Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS).apply {
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
+            },
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+
+        val notification = Notification.Builder(context, SERVICE_CHANNEL_ID)
+            .setSmallIcon(R.drawable.ic_notification)
+            .setContentTitle(context.getString(R.string.service_stopped_title))
+            .setContentText(context.getString(R.string.service_stopped_body))
+            .setStyle(
+                Notification.BigTextStyle().bigText(context.getString(R.string.service_stopped_body))
+            )
+            .setContentIntent(openSettings)
+            .setAutoCancel(true)
+            .setCategory(Notification.CATEGORY_ERROR)
+            .setVisibility(Notification.VISIBILITY_PUBLIC)
+            .build()
+
+        return post(context, SERVICE_ID, notification)
+    }
+
+    fun cancelServiceStopped(context: Context) {
+        context.getSystemService(NotificationManager::class.java).cancel(SERVICE_ID)
     }
 
     fun sendLimitReminder(
@@ -177,6 +227,7 @@ object ReminderNotifier {
     fun cancelAll(context: Context) {
         val manager = context.getSystemService(NotificationManager::class.java)
         manager.cancel(COUNTDOWN_ID)
+        manager.cancel(SERVICE_ID)
         manager.cancel(REMINDER_ID)
         manager.cancel(TEST_ID)
     }

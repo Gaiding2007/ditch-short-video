@@ -84,6 +84,7 @@ class ShortVideoAccessibilityService : AccessibilityService() {
 
         connected = true
         lastReminderAttempt = -60_000L
+        ReminderNotifier.cancelServiceStopped(this)
         registerScreenReceiver()
         MonitorRuntime.update(
             MonitorRuntime.State(
@@ -416,6 +417,7 @@ class ShortVideoAccessibilityService : AccessibilityService() {
     }
 
     override fun onInterrupt() {
+        val wasConnected = connected
         connected = false
         stopTicker()
         resetGrace()
@@ -429,9 +431,13 @@ class ShortVideoAccessibilityService : AccessibilityService() {
                 updatedAtElapsed = SystemClock.elapsedRealtime()
             )
         )
+        if (wasConnected) {
+            ReminderNotifier.showServiceStopped(this)
+        }
     }
 
     override fun onDestroy() {
+        val wasConnected = connected
         connected = false
         stopTicker()
         resetGrace()
@@ -446,6 +452,9 @@ class ShortVideoAccessibilityService : AccessibilityService() {
                 updatedAtElapsed = SystemClock.elapsedRealtime()
             )
         )
+        if (wasConnected) {
+            ReminderNotifier.showServiceStopped(this)
+        }
         super.onDestroy()
     }
 

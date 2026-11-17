@@ -8,6 +8,10 @@
     <string name="notification_channel_description">当天刷短视频达到额度时提醒一次</string>
     <string name="countdown_channel_name">计时倒计时</string>
     <string name="countdown_channel_description">刷短视频时显示剩余额度的常驻倒计时</string>
+    <string name="service_channel_name">页面识别状态</string>
+    <string name="service_channel_description">页面识别断开时提醒，点击可重新开启</string>
+    <string name="service_stopped_title">计时已停止</string>
+    <string name="service_stopped_body">页面识别被系统关闭了。点这里重新开启，计时才会继续。</string>
     <string name="default_reminder_title">今天的短视频额度用完了</string>
     <string name="default_reminder_body">已经看了 {used} 分钟，限额是 {limit} 分钟。把手机放下，去做点真正想做的事吧。</string>
 </resources>
