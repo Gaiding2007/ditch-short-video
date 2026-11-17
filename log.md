@@ -167,7 +167,7 @@ app/src/main/java/com/gaiding/ditchshortvideo/
 - 模拟器卸载旧 debug 包后全新安装 release 包，冷启动成功；首页/设置 footer 显示 `v0.1.0`，引导页三项权限全部绿色。
 - 页面识别逻辑未改，0.0.4 的 **22/22** 自检结果继续适用；本版未新增识别规则。
 - 代码提交 `241236b feat: 扔掉短视频 0.1.0`，已推送 `main`。
-- GitHub Release：`v0.1.0`（release id `448526181`），APK asset id `758755763`，729,644 字节，下载 <https://github.com/Gaiding2007/ditch-short-video/releases/download/v0.1.0/app-release.apk>。
+- GitHub Release：`v0.1.0`（release id `448529706`，已设为 latest），APK asset id `758766575`，729,644 字节，下载 <https://github.com/Gaiding2007/ditch-short-video/releases/download/v0.1.0/app-release.apk>。
 
 #### 已知限制
 
