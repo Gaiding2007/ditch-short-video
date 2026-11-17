@@ -118,6 +118,7 @@ app/src/main/java/com/gaiding/ditchshortvideo/
 - `:app:assembleDebug` 成功（28s，37 tasks），APK 975,950 字节。
 - 模拟器安装 `0.0.5`；`dumpsys package` 确认 `versionCode=5` / `versionName=0.0.5`。
 - 清除无障碍服务后，通知 ID `1100` 正常 post，通知栏显示“计时已停止”；重新开启服务后自动取消。
+- GitHub Release：`v0.0.5`（release id `448498420`），APK asset id `758684875`，下载 <https://github.com/Gaiding2007/ditch-short-video/releases/download/v0.0.5/app-debug.apk>。
 - 无法在“强行停止”场景验证：进程被系统直接杀死时不会执行 `onDestroy()`，这是系统限制，不是通知逻辑遗漏。
 
 #### 已知限制
