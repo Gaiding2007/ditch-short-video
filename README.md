@@ -4,7 +4,7 @@
 
 一个只在**真正刷短视频**时计时的 Android 应用。到了自己设定的每日额度，它只提醒一次，不锁机、不关 App、不上传数据。
 
-中文名：**扔掉短视频**　英文名/仓库名：**ditch-short-video**　当前版本：**0.0.5**
+中文名：**扔掉短视频**　英文名/仓库名：**ditch-short-video**　当前版本：**0.1.0**（内测）
 
 [项目日志](log.md) · [GitHub 仓库](https://github.com/Gaiding2007/ditch-short-video) · [下载 APK](https://github.com/Gaiding2007/ditch-short-video/releases/latest)
 
@@ -64,17 +64,21 @@
 
 ## 安装
 
-第一版是调试签名 APK，适合自己侧载体验。可以直接从 [GitHub Releases](https://github.com/Gaiding2007/ditch-short-video/releases/latest) 下载 `app-debug.apk`；也可以本地构建：
+0.1.0 起使用 **release 签名** 的 `app-release.apk`，可以从 [GitHub Releases](https://github.com/Gaiding2007/ditch-short-video/releases/latest) 下载；也可以本地构建：
 
 ```powershell
 # 在项目根目录构建（首次会下载 Gradle 8.14）
-.\gradlew.bat :app:assembleDebug
+.\gradlew.bat :app:assembleRelease
 
 # 产物
-# app\build\outputs\apk\debug\app-debug.apk
+# app\build\outputs\apk\release\app-release.apk
 ```
 
+本地构建 release 需要 `keystore/release.properties` 和 `keystore/ditch-release.jks`；这两个文件已被 `.gitignore` 排除，不随仓库分发。
+
 也可以直接用 Android Studio 打开项目，等待同步完成后运行 `app`。`local.properties` 里的 `sdk.dir` 由本机 Android Studio 生成，不提交到仓库。
+
+> 从 0.0.5（debug 签名）升级到 0.1.0（release 签名）必须**先卸载旧版**，否则会报签名不一致。卸载会清空本地记录；内测朋友请直接全新安装 0.1.0。
 
 安装后，按首页“开始前，只差这几步”依次完成：
 
@@ -88,12 +92,14 @@
 - `minSdk 26` / `compileSdk 36` / `targetSdk 36`
 - AGP `8.13.1`，Kotlin `2.2.20`，Gradle `8.14`
 - 包名：`com.gaiding.ditchshortvideo`
-- 签名：项目内调试证书 `keystore/debug.keystore`（仅调试，勿用于正式发布）；SHA-256 `7A:4F:D0:FC:F7:60:75:03:B7:2D:B4:5E:82:5A:03:A9:0D:0A:78:10:91:E2:A4:59:8B:71:DF:CD:B8:CA:4A:38`
+- 发布签名：`keystore/ditch-release.jks`（RSA 4096，30 年），alias `ditch-release`；证书 SHA-256 `8D:58:21:E8:F5:F9:B3:03:E5:6A:98:0E:85:2A:85:B4:EE:F2:32:66:16:57:C6:51:39:64:C5:93:F6:F9:B5:0D`
+- `keystore/release.properties` 保存签名配置，和 `.jks` 一样被 `.gitignore` 排除；密码另存 `.secrets/release-keystore.txt`，**务必离线备份，丢失后无法再升级已安装的 App**。
+- 调试构建仍使用 `keystore/debug.keystore`，只用于本地调试；不要拿 debug 包对外分发。
 
 开发第一版时所在环境无法联网下载 AGP 的 `aapt2`，因此本地构建通过命令行额外传入：
 
 ```powershell
-.\gradlew.bat :app:assembleDebug `
+.\gradlew.bat :app:assembleRelease `
   -Pandroid.aapt2FromMavenOverride="D:\applications\SDK\build-tools\36.1.0\aapt2.exe"
 ```
 
@@ -120,12 +126,13 @@
 - 评论区：临时页面最多继续计 30 秒，普通页面切换最多 2 秒；如果评论页特征识别不到，会按普通 2 秒宽限暂停。这是 0.0.3 的折中策略。
 - 小米超级岛取决于系统版本和通知权限；侧载应用通常拿不到官方焦点通知权限，`miui.focus.param` 可能被系统忽略。没有上岛时会回退为普通通知。
 - B 站首次进入故事页的修复基于“故事标题 + 视频画面 + 8 秒重抓”；真实 B 站版本若改掉 `story_title` 或改用其他播放器，仍可能失效。遇到漏计，请到诊断页复制 Activity/识别原因反馈。
-- 使用调试签名，不适合上架应用商店。
+- 0.1.0 起使用 release 签名，可做小范围内测；仍未做应用商店上架、隐私政策和正式商店资料。
 - “强行停止”App 会同时停掉无障碍服务；从最近任务划掉也可能被 MIUI 清理。当前只能通过电池无限制/自启动/最近任务加锁降低概率，尚未加入前台保活服务。
 - 计时中的倒计时是 LOW 重要度静默通知，不会响铃或震动；下拉通知栏可见，暂停后 2 秒收起。
 
 ## 版本
 
+- `0.1.0` — 2026-11-17：首个 release 签名内测版；版本号 `0.1.0` / versionCode `10`；功能与 0.0.5 一致，切换正式发布证书，用于超小范围内测。
 - `0.0.5` — 2026-11-17：新增无障碍断开提醒，点击通知直达系统无障碍设置；重新连接自动取消；后台保活仍只做提醒，不加前台服务。
 - `0.0.4` — 2026-11-17：修复 B 站首次打开故事页不计时（故事标题兜底 + 8 秒重抓 + 清除过期 Activity）；软件内版本号改用 `BuildConfig.VERSION_NAME`；22 项自检。
 - `0.0.3` — 2026-11-17：B 站故事页结构兜底、小红书视频流识别、评论区 30 秒宽限/普通切换 2 秒、倒计时收起缩短到 2 秒；21 项自检。

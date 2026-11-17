@@ -2,8 +2,8 @@
 
 > 仓库：<https://github.com/Gaiding2007/ditch-short-video>
 > 包名：`com.gaiding.ditchshortvideo`
-> 当前版本：`0.0.5`（versionCode `5`）
-> 当前阶段：0.0.5 增加无障碍断开提醒；后台保活仍只做提醒，不加前台服务。
+> 当前版本：`0.1.0`（versionCode `10`）
+> 当前阶段：0.1.0 首个 release 签名内测版；功能沿用 0.0.5，切换正式发布证书，准备超小范围内测。
 
 ---
 
@@ -30,7 +30,7 @@
 8. **小米超级岛**：优先走 Android 16 的 Promoted Ongoing（`POST_PROMOTED_NOTIFICATIONS` + `requestPromotedOngoing`），系统支持时上岛，不支持时自然回退普通通知；`miui.focus.param` 作为实验开关预埋，默认关闭。侧载应用无法保证拿到小米官方焦点通知权限。
 9. **类 GitHub 小绿点**：首页展示全年 7 行 × 周的热力图，按当天刷视频时长/额度分 5 档颜色，今天有描边，未来日期淡灰。
 10. **无障碍断开提醒**：页面识别服务被系统中断或销毁时，发一条可点击的通知，点按直接跳到系统无障碍设置；重新连接后自动取消。
-11. **版本与仓库**：当前版本 `0.0.5`，每次改动写本日志，每个版本通过 git 提交并推送 GitHub；APK 同时上传 GitHub Release。
+11. **版本与仓库**：当前版本 `0.1.0`，每次改动写本日志，每个版本通过 git 提交并推送 GitHub；APK 同时上传 GitHub Release。
 
 ### 0.3 第一版明确不做
 
@@ -43,7 +43,7 @@
 - 分屏/小窗的精确页面归属
 - 详细统计图表、数据导出
 - 小米以外品牌的“灵动岛”适配
-- 应用商店上架与正式签名
+- 应用商店上架与商店资料；0.1.0 起已切换到 release 签名用于内测，但仍不上架。
 
 ### 0.4 技术与环境基线
 
@@ -57,11 +57,12 @@
       --console=plain --offline --no-daemon `
       -Pandroid.aapt2FromMavenOverride="D:\applications\SDK\build-tools\36.1.0\aapt2.exe"
   ```
-- 项目内 debug 签名：`keystore/debug.keystore`，alias `androiddebugkey`，store/key 密码均为 `android`。这是公开的调试证书，不用于正式发布。
+- 发布签名：`keystore/ditch-release.jks`，alias `ditch-release`，RSA 4096，有效期 10950 天；证书 SHA-256 `8D:58:21:E8:F5:F9:B3:03:E5:6A:98:0E:85:2A:85:B4:EE:F2:32:66:16:57:C6:51:39:64:C5:93:F6:F9:B5:0D`。`keystore/release.properties` 和 `.secrets/release-keystore.txt` 均被 `.gitignore` 排除，必须离线备份。
+- 调试签名：`keystore/debug.keystore`，alias `androiddebugkey`，store/key 密码均为 `android`。这是公开的调试证书，只用于本地调试，不对外分发。
 - 仓库带 Gradle Wrapper（Gradle `8.14`，bin 分发）；`gradle.properties` 关闭 vfs watch、Kotlin 采用 in-process 编译。当前沙箱的离线缓存缺少 AGP 的 aapt2，因此本机构建时额外传 `-Pandroid.aapt2FromMavenOverride=D:\applications\SDK\build-tools\36.1.0\aapt2.exe`；普通联网环境无需该参数。
 - `settings.gradle.kts` 用 `resolutionStrategy` 将插件坐标指向本地缓存中的 AGP/Kotlin 构件。
 - 本地没有 JUnit 缓存且外网 Maven 不可达，因此不写 `src/test` 单测；页面规则自检放在 App 内“诊断”页运行，共 22 个纯逻辑用例。
-- APK 输出：`app/build/outputs/apk/debug/app-debug.apk`。
+- APK 输出：debug 为 `app/build/outputs/apk/debug/app-debug.apk`；release 为 `app/build/outputs/apk/release/app-release.apk`。0.1.0 起对外分发使用 release APK。
 
 ### 0.5 代码地图
 
@@ -138,6 +139,53 @@ app/src/main/java/com/gaiding/ditchshortvideo/
 1. 在小米 15 Pro 上分别测试：系统设置里关闭无障碍、划掉最近任务、重启手机，确认哪些场景能收到提醒。
 2. 若强行停止场景必须覆盖，再评估前台服务 + 常驻通知，代价是耗电和通知栏占用。
 3. 签名方案：继续用调试证书发 0.0.x；正式上架前再生成 release keystore，避免现在切换导致老用户必须卸载。
+
+### 0.1.0 — 2026-11-17
+
+首个 release 签名内测版。功能与 0.0.5 一致，只做版本号、签名和分发方式的收尾，用于超小范围朋友内测。
+
+#### 用户决策
+
+- 学校软著平台要求必须勾选“非 AI”，用户决定**暂时不登记软著**；不提交 AI 生成的代码/文档，也不做虚假承诺。
+- 下一版定为 `0.1.0`，开始超小范围内测。
+- 用户询问“给朋友发安装包算不算分发，是否要重新考虑签名”。结论：把 APK 复制给朋友安装，已经属于对外提供复制件；从安全角度必须按“会离开自己设备”处理，不能继续使用公开的 debug 证书。
+
+#### 签名切换
+
+- 新建 release keystore：`keystore/ditch-release.jks`，alias `ditch-release`，RSA 4096，有效期 10950 天。
+- 证书 SHA-256：`8D:58:21:E8:F5:F9:B3:03:E5:6A:98:0E:85:2A:85:B4:EE:F2:32:66:16:57:C6:51:39:64:C5:93:F6:F9:B5:0D`。
+- `keystore/release.properties` 保存 store/key 密码与 alias；和 `.jks` 一起被 `.gitignore` 排除。
+- 密码与备份说明另存 `.secrets/release-keystore.txt`，同样不提交 git。**丢了这个文件或 jks，已安装用户永远无法升级，只能卸载重装。**
+- `app/build.gradle.kts` 新增 `release` signingConfig；`assembleRelease` 使用该证书，`assembleDebug` 仍用调试证书。
+- 从 0.0.5（debug）升级到 0.1.0（release）必须卸载旧版；全新安装不受影响。
+
+#### 版本与构建
+
+- `versionCode 10` / `versionName 0.1.0`（给 0.1.x 留出编号空间）。
+- `:app:assembleRelease` 成功，APK `app/build/outputs/apk/release/app-release.apk`，729,644 字节。
+- `apksigner verify` 签名通过，`aapt2 dump badging` 显示 `versionCode='10' versionName='0.1.0'`，未开启 debuggable。
+- 模拟器卸载旧 debug 包后全新安装 release 包，冷启动成功；首页/设置 footer 显示 `v0.1.0`，引导页三项权限全部绿色。
+- 页面识别逻辑未改，0.0.4 的 **22/22** 自检结果继续适用；本版未新增识别规则。
+
+#### 已知限制
+
+- 真实小米 15 Pro 仍需做一次全新安装验证（签名切换后不能覆盖安装旧 debug 包）。
+- 仍未做应用商店上架、隐私政策、正式商店资料。
+- 后台保活仍只有电池白名单 + 断开提醒，没有前台服务；强行停止场景仍无法发通知。
+- release keystore 只在本机与 `.secrets` 中，若电脑丢失且没有离线备份，将无法再发布升级包。
+
+#### 本版仍不做
+
+- 前台保活服务、开机自启、无障碍自动恢复。
+- 应用商店上架、隐私政策、商店截图/素材。
+- 软著登记材料；AI 生成代码的合规问题不由本项目解决。
+- 更多 App、自定义页面规则、详细统计、云同步。
+
+#### 推荐下一步
+
+1. 先把 0.1.0 发给 1–3 个朋友，要求“卸载旧版后全新安装”，收集机型/系统/是否能收到断开提醒。
+2. 如果朋友反馈“划掉后台后收不到提醒”，再评估 0.1.1 是否加前台服务；不要在没有真实需求前增加常驻通知。
+3. 正式上架前再准备隐私政策、商店素材和 release 签名备份演练。
 
 ### 0.0.4 — 2026-11-17
 
