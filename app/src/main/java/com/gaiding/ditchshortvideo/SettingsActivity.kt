@@ -266,6 +266,10 @@ class SettingsActivity : Activity() {
                 "每日记录只保存在这台手机，不会上传。"
             )
         )
+        card.addView(aboutRow("每日曲线与计划", "查看每天时长，设置希望控制到的额度") {
+            startActivity(Intent(this, DataActivity::class.java))
+        }, topMargin(10))
+        card.addView(Ui.divider(this), topMargin(8))
         val clear = Ui.button(this, "清空全部记录", primary = false).apply {
             setTextColor(Ui.colorOf(this@SettingsActivity, R.color.danger))
         }
@@ -386,7 +390,7 @@ class SettingsActivity : Activity() {
         }
         val input = editText(singleLine = true).apply {
             inputType = InputType.TYPE_CLASS_NUMBER
-            filters = arrayOf(InputFilter.LengthFilter(3))
+            filters = arrayOf(InputFilter.LengthFilter(4))
             setText(prefs.dailyLimitMinutes.toString())
             setSelection(text.length)
         }
@@ -413,6 +417,10 @@ class SettingsActivity : Activity() {
                     return@setOnClickListener
                 }
                 prefs.dailyLimitMinutes = value
+                if (prefs.planEnabled) {
+                    prefs.clearPlan()
+                    Ui.toast(this, "已手动修改额度，自动计划已关闭")
+                }
                 refreshLimit()
                 refreshPreview()
                 dialog.dismiss()
@@ -465,7 +473,7 @@ class SettingsActivity : Activity() {
     private fun confirmClear() {
         val dialog = AlertDialog.Builder(this)
             .setTitle("清空全部记录？")
-            .setMessage("会删除每日观看记录，并重新允许今天再次提醒。额度、提醒文案和监控 App 设置会保留。")
+            .setMessage("会删除每日观看记录并关闭自动计划，重新允许今天再次提醒。额度、提醒文案和监控 App 设置会保留。")
             .setNegativeButton("取消", null)
             .setPositiveButton("清空", null)
             .create()

@@ -20,8 +20,8 @@ android {
         applicationId = "com.gaiding.ditchshortvideo"
         minSdk = 26
         targetSdk = 36
-        versionCode = 12
-        versionName = "0.1.2"
+        versionCode = 20
+        versionName = "0.2.0"
     }
 
     signingConfigs {
@@ -72,6 +72,24 @@ android {
 
     buildFeatures {
         buildConfig = true
+    }
+}
+
+afterEvaluate {
+    listOf("Debug", "Release").forEach { variant ->
+        tasks.named("assemble$variant").configure {
+            doLast {
+                val folder = layout.buildDirectory.dir("outputs/apk/${variant.lowercase()}").get().asFile
+                val source = folder.resolve("app-${variant.lowercase()}.apk")
+                if (source.exists()) {
+                    val suffix = if (variant == "Debug") "-debug" else ""
+                    source.copyTo(
+                        folder.resolve("ditch-short-video-${android.defaultConfig.versionName}$suffix.apk"),
+                        overwrite = true
+                    )
+                }
+            }
+        }
     }
 }
 

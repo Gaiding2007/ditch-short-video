@@ -8,7 +8,8 @@ object DetectorSelfTest {
     data class Case(
         val name: String,
         val page: PageSnapshot,
-        val expected: Boolean
+        val expected: Boolean,
+        val expectedComment: Boolean? = null
     )
 
     data class Failure(
@@ -35,12 +36,26 @@ object DetectorSelfTest {
 
         cases.forEach { case ->
             val result = ShortVideoDetector.evaluate(case.page)
-            if (result.isShortVideo == case.expected) {
-                passed++
-            } else {
+            if (result.isShortVideo != case.expected) {
                 failures.add(
                     Failure(case.name, case.expected, result.isShortVideo, result.reason)
                 )
+            } else if (case.expectedComment != null) {
+                val actual = ShortVideoDetector.isCommentLike(case.page)
+                if (actual != case.expectedComment) {
+                    failures.add(
+                        Failure(
+                            case.name,
+                            case.expectedComment,
+                            actual,
+                            if (actual) "被误判为评论区" else "没有识别为评论区"
+                        )
+                    )
+                } else {
+                    passed++
+                }
+            } else {
+                passed++
             }
         }
         return Report(cases.size, passed, failures)
@@ -284,6 +299,32 @@ object DetectorSelfTest {
                 node("android.widget.TextView", id = "tv.danmaku.bili:id/story_title")
             ),
             false
+        ),
+        Case(
+            "B 站故事页评论区应识别为评论",
+            page(
+                "tv.danmaku.bili",
+                "com.bilibili.video.story.StoryVideoActivity",
+                node("android.widget.TextView", id = "tv.danmaku.bili:id/story_title"),
+                node("android.view.SurfaceView"),
+                node("android.widget.TextView", text = "全部评论"),
+                node("android.widget.TextView", text = "回复"),
+                node("android.widget.TextView", text = "说点什么")
+            ),
+            true,
+            expectedComment = true
+        ),
+        Case(
+            "B 站故事页只有单个评论按钮不算评论区",
+            page(
+                "tv.danmaku.bili",
+                "com.bilibili.video.story.StoryVideoActivity",
+                node("android.widget.TextView", id = "tv.danmaku.bili:id/story_title"),
+                node("android.view.SurfaceView"),
+                node("android.widget.TextView", desc = "评论")
+            ),
+            true,
+            expectedComment = false
         ),
         Case(
             "抖音 Activity 缺失但互动栏完整应计时",

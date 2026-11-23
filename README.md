@@ -4,7 +4,7 @@
 
 一个只在**真正刷短视频**时计时的 Android 应用。到了自己设定的每日额度，它只提醒一次，不锁机、不关 App、不上传数据。
 
-中文名：**扔掉短视频**　英文名/仓库名：**ditch-short-video**　当前版本：**0.1.2**（内测）
+中文名：**扔掉短视频**　英文名/仓库名：**ditch-short-video**　当前版本：**0.2.0**（内测）
 
 [项目日志](log.md) · [GitHub 仓库](https://github.com/Gaiding2007/ditch-short-video) · [下载 APK](https://github.com/Gaiding2007/ditch-short-video/releases/latest)
 
@@ -15,6 +15,10 @@
 | 首页 | 设置 |
 | --- | --- |
 | ![首页](docs/screenshots/home.png) | ![设置](docs/screenshots/settings.png) |
+
+| 每日曲线 | 自动控制计划 |
+| --- | --- |
+| ![每日曲线](docs/screenshots/data.png) | ![控制计划](docs/screenshots/plan.png) |
 
 | 诊断与页面规则自检 | 超时提醒 |
 | --- | --- |
@@ -35,7 +39,9 @@
 - **计时中的常驻倒计时**：识别到短视频页面后，通知栏会出现一条静默倒计时，显示还能看多久；下拉通知栏不会瞬间消失，暂停后保留 3 秒再收起。
 - **超时只提醒一次**：标题和正文可自定义，支持 `{used}` / `{limit}` 占位符；不强制拦截。
 - **小米超级岛尽力适配**：Android 16 的 promoted ongoing 通知作为主路径；系统支持就上岛，不支持就普通通知。小米焦点通知参数作为诊断页实验开关预埋，默认关闭。
-- **类 GitHub 小绿点**：首页年度热力图，颜色越深代表当天刷得越久；今天有描边，未来日期淡灰。
+- **独立数据页**：每天的具体时长、30 天每日曲线、每日明细和年度热力图都收进独立页面，首页只保留摘要和入口。
+- **自动控制计划**：选一个希望控制到的目标时长（15–120 分钟）；积累 3 天记录后，生成 14 天从当前水平滑向目标、带轻微噪声的计划曲线，并自动把每日额度设为计划值。前 3 天先维持现状，之后逐步调整。
+- **类 GitHub 小绿点**：数据页年度热力图，颜色越深代表当天刷得越久；今天有描边，未来日期淡灰。
 - **数据只在本地**：没有账号、没有云同步，App 没有申请联网权限。
 - **断开提醒**：页面识别被系统关闭或服务中断时，发一条可点击的通知，点按直接跳到系统无障碍设置；重新连接后自动收起。
 
@@ -65,14 +71,14 @@
 
 ## 安装
 
-0.1.0 起使用 **release 签名** 的 `app-release.apk`，可以从 [GitHub Releases](https://github.com/Gaiding2007/ditch-short-video/releases/latest) 下载；也可以本地构建：
+0.1.0 起使用 **release 签名**，0.2.0 起的 APK 文件名带版本号，例如 `ditch-short-video-0.2.0.apk`；可以从 [GitHub Releases](https://github.com/Gaiding2007/ditch-short-video/releases/latest) 下载，也可以本地构建：
 
 ```powershell
 # 在项目根目录构建（首次会下载 Gradle 8.14）
 .\gradlew.bat :app:assembleRelease
 
-# 产物
-# app\build\outputs\apk\release\app-release.apk
+# 产物（另有兼容用的 app-release.apk）
+# app\build\outputs\apk\release\ditch-short-video-0.2.0.apk
 ```
 
 本地构建 release 需要 `keystore/release.properties` 和 `keystore/ditch-release.jks`；这两个文件已被 `.gitignore` 排除，不随仓库分发。
@@ -106,7 +112,7 @@
 
 普通联网环境不需要这个参数，Android Studio 同步后直接构建即可。
 
-页面规则自检在 App 内 **设置 → 诊断与页面规则 → 运行 26 个用例**，不依赖安装真实短视频 App。
+页面规则自检在 App 内 **设置 → 诊断与页面规则 → 运行 28 个用例**，不依赖安装真实短视频 App。
 
 ## 权限
 
@@ -134,6 +140,7 @@
 
 ## 版本
 
+- `0.2.0` — 2026-11-23：新增独立数据页（每日曲线、每日明细、年度热力图）、3 天门槛的 14 天自动额度计划（带轻微噪声）、B 站评论区特征、APK 版本化命名；28 项自检；release 签名可覆盖 0.1.2。
 - `0.1.2` — 2026-11-17：把页面抖动宽限/倒计时保留从 2 秒延长到 3 秒；识别并暂缓 SystemUI、输入法覆盖窗口，不再因此重置抖音/快手 Activity；26 项自检；同一 release 签名可覆盖 0.1.1。
 - `0.1.1` — 2026-11-17：一加等 OEM 的 Activity 为空兜底（抖音/快手）、新增最近事件日志与诊断复制、首页区分“已开启但未连接”；26 项自检；同一 release 签名可覆盖 0.1.0。
 - `0.1.0` — 2026-11-17：首个 release 签名内测版；版本号 `0.1.0` / versionCode `10`；功能与 0.0.5 一致，切换正式发布证书，用于超小范围内测。

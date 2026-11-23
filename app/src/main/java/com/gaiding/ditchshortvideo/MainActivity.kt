@@ -10,7 +10,6 @@ import android.os.Build
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
-import android.os.SystemClock
 import android.text.InputType
 import android.view.Gravity
 import android.view.View
@@ -18,21 +17,19 @@ import android.view.ViewGroup
 import android.view.WindowManager
 import android.widget.EditText
 import android.widget.FrameLayout
-import android.widget.HorizontalScrollView
 import android.widget.LinearLayout
 import android.widget.ScrollView
 import android.widget.Switch
 import android.widget.TextView
 import com.gaiding.ditchshortvideo.data.DayUtils
 import com.gaiding.ditchshortvideo.data.MonitoredApps
+import com.gaiding.ditchshortvideo.data.PlanEngine
 import com.gaiding.ditchshortvideo.data.Prefs
 import com.gaiding.ditchshortvideo.data.UsageStore
 import com.gaiding.ditchshortvideo.monitor.MonitorRuntime
 import com.gaiding.ditchshortvideo.system.SystemStatus
-import com.gaiding.ditchshortvideo.ui.HeatmapView
 import com.gaiding.ditchshortvideo.ui.ProgressRingView
 import com.gaiding.ditchshortvideo.ui.Ui
-import java.time.LocalDate
 import kotlin.math.max
 
 class MainActivity : Activity() {
@@ -50,13 +47,9 @@ class MainActivity : Activity() {
     private lateinit var statusDetail: TextView
     private lateinit var preparationContainer: LinearLayout
     private lateinit var appsContainer: LinearLayout
-    private lateinit var heatmap: HeatmapView
-    private lateinit var heatScroll: HorizontalScrollView
-    private lateinit var heatSummary: TextView
+    private lateinit var dataSummary: TextView
 
     private var preparationSignature = ""
-    private var lastHeatRefresh = 0L
-    private var heatScrolled = false
 
     private val ticker = object : Runnable {
         override fun run() {
@@ -75,7 +68,8 @@ class MainActivity : Activity() {
 
     override fun onResume() {
         super.onResume()
-        refresh(forcePreparation = true, forceHeatmap = true)
+        PlanEngine.applyToday(prefs, usage)
+        refresh(forcePreparation = true)
         handler.removeCallbacks(ticker)
         handler.post(ticker)
     }
@@ -128,7 +122,7 @@ class MainActivity : Activity() {
         content.addView(buildStatusStrip(), topMargin(10))
         content.addView(buildPreparationCard(), topMargin(14))
         content.addView(buildAppsCard(), topMargin(14))
-        content.addView(buildHeatmapCard(), topMargin(14))
+        content.addView(buildDataCard(), topMargin(14))
         content.addView(buildFooter(), topMargin(22))
         return root
     }
@@ -320,48 +314,24 @@ class MainActivity : Activity() {
         parent.addView(divider, params)
     }
 
-    private fun buildHeatmapCard(): View {
+    private fun buildDataCard(): View {
         val card = Ui.card(this)
         card.addView(
             Ui.sectionHeader(
                 this,
-                "今年刷了多少",
-                "颜色越深，刷得越久。左右滑动看全年。"
+                "你的数据",
+                "每天的具体时长、计划曲线和年度热力图，都放在单独的数据页。"
             )
         )
-        heatSummary = Ui.text(this, "", 12f, Ui.colorOf(this, R.color.ink_soft))
-        card.addView(heatSummary, topMargin(8))
+        dataSummary = Ui.text(this, "", 12f, Ui.colorOf(this, R.color.ink_soft))
+        card.addView(dataSummary, topMargin(8))
 
-        heatScroll = HorizontalScrollView(this).apply {
-            isHorizontalScrollBarEnabled = false
-            overScrollMode = View.OVER_SCROLL_NEVER
-        }
-        heatmap = HeatmapView(this)
-        heatScroll.addView(
-            heatmap,
-            ViewGroup.LayoutParams.WRAP_CONTENT,
-            ViewGroup.LayoutParams.WRAP_CONTENT
-        )
-        card.addView(heatScroll, topMargin(8))
-
-        val legend = Ui.row(this)
-        legend.gravity = Gravity.END
-        legend.addView(Ui.text(this, "少", 10f, Ui.colorOf(this, R.color.ink_faint)))
-        listOf(R.color.heat_0, R.color.heat_1, R.color.heat_2, R.color.heat_3, R.color.heat_4)
-            .forEach { color ->
-                val swatch = Ui.legendSwatch(this, Ui.colorOf(this, color))
-                val params = LinearLayout.LayoutParams(swatch.layoutParams)
-                params.leftMargin = Ui.dp(this, 4)
-                legend.addView(swatch, params)
+        val open = Ui.button(this, "查看每日曲线与计划", primary = true).apply {
+            setOnClickListener {
+                startActivity(Intent(this@MainActivity, DataActivity::class.java))
             }
-        val more = Ui.text(this, "多", 10f, Ui.colorOf(this, R.color.ink_faint))
-        val moreParams = LinearLayout.LayoutParams(
-            ViewGroup.LayoutParams.WRAP_CONTENT,
-            ViewGroup.LayoutParams.WRAP_CONTENT
-        )
-        moreParams.leftMargin = Ui.dp(this, 4)
-        legend.addView(more, moreParams)
-        card.addView(legend, topMargin(6))
+        }
+        card.addView(open, topMargin(12))
         return card
     }
 
@@ -379,11 +349,11 @@ class MainActivity : Activity() {
         return box
     }
 
-    private fun refresh(forcePreparation: Boolean = false, forceHeatmap: Boolean = false) {
+    private fun refresh(forcePreparation: Boolean = false) {
         refreshData()
         refreshStatus()
         refreshPreparation(forcePreparation)
-        refreshHeatmap(forceHeatmap)
+        refreshDataSummary()
     }
 
     private fun refreshData() {
@@ -535,26 +505,20 @@ class MainActivity : Activity() {
         preparationContainer.addView(row)
     }
 
-    private fun refreshHeatmap(force: Boolean) {
-        val now = SystemClock.elapsedRealtime()
-        if (!force && now - lastHeatRefresh < 15_000L) return
-        lastHeatRefresh = now
-
-        val year = DayUtils.today().year
-        val map = usage.recentMap(400).filterKeys { it.year == year }
-        val total = map.values.sum()
-        val activeDays = map.values.count { it > 0L }
-        heatmap.submit(map, prefs.dailyLimitMinutes)
-        heatSummary.text = if (total == 0L) {
-            "今年还没有记录，从今天开始。"
+    private fun refreshDataSummary() {
+        val week = usage.recentDays(7)
+        val total = week.sumOf { it.seconds }
+        val days = week.count { it.seconds > 0L }
+        val state = PlanEngine.state(prefs, usage)
+        val base = if (total == 0L) {
+            "最近 7 天还没有记录。"
         } else {
-            "今年累计 ${DayUtils.humanDuration(total)} · $activeDays 天有记录"
+            "最近 7 天 ${DayUtils.humanDuration(total)} · $days 天有记录。"
         }
-        if (!heatScrolled) {
-            heatScrolled = true
-            heatScroll.post {
-                heatScroll.scrollTo(max(0, heatmap.scrollXForToday(heatScroll.width)), 0)
-            }
+        dataSummary.text = if (state.enabled) {
+            "$base\n自动计划：目标 ${state.goalMinutes} 分钟 · 今天额度 ${state.todayLimit} 分钟"
+        } else {
+            "$base\n还没有启用自动计划。"
         }
     }
 
@@ -617,7 +581,11 @@ class MainActivity : Activity() {
                     return@setOnClickListener
                 }
                 prefs.dailyLimitMinutes = value
-                refresh(forcePreparation = false, forceHeatmap = true)
+                if (prefs.planEnabled) {
+                    prefs.clearPlan()
+                    Ui.toast(this, "已手动修改额度，自动计划已关闭")
+                }
+                refresh()
                 dialog.dismiss()
             }
         }

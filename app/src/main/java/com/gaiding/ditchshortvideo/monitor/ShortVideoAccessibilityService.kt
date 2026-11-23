@@ -15,6 +15,7 @@ import android.os.SystemClock
 import android.view.accessibility.AccessibilityEvent
 import com.gaiding.ditchshortvideo.data.DayUtils
 import com.gaiding.ditchshortvideo.data.MonitoredApps
+import com.gaiding.ditchshortvideo.data.PlanEngine
 import com.gaiding.ditchshortvideo.data.Prefs
 import com.gaiding.ditchshortvideo.data.UsageStore
 import com.gaiding.ditchshortvideo.notify.ReminderNotifier
@@ -67,6 +68,7 @@ class ShortVideoAccessibilityService : AccessibilityService() {
         prefs = Prefs(this)
         usage = UsageStore(this)
         currentDate = DayUtils.today()
+        PlanEngine.applyToday(prefs, usage)
         ReminderNotifier.cancelCountdown(this)
     }
 
@@ -308,6 +310,7 @@ class ShortVideoAccessibilityService : AccessibilityService() {
             sessionSeconds = 0L
             positiveStreak = 0
             lastReminderAttempt = -60_000L
+            PlanEngine.applyToday(prefs, usage)
             countdownKey = null
             resetGrace()
         }

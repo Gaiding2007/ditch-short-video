@@ -2,8 +2,8 @@
 
 > 仓库：<https://github.com/Gaiding2007/ditch-short-video>
 > 包名：`com.gaiding.ditchshortvideo`
-> 当前版本：`0.1.2`（versionCode `12`）
-> 当前阶段：0.1.2 一加 ColorOS 计时稳定性修复版；把页面抖动宽限从 2 秒延长到 3 秒，并避免 SystemUI/输入法覆盖窗口把页面识别重置。
+> 当前版本：`0.2.0`（versionCode `20`）
+> 当前阶段：0.2.0 数据页与自动控制计划版；新增每日曲线、独立数据页、带噪声的 14 天额度滑降计划、APK 版本化命名，并补 B 站评论区特征。
 
 ---
 
@@ -28,9 +28,12 @@
 6. **超时提醒**：到额度当天只提醒一次，不强制锁机、不关 App、不拦截。提醒标题与正文可自定义，支持 `{used}` 和 `{limit}` 占位符。
 7. **计时中的常驻倒计时**：识别到短视频页面并开始计时时，发一条低优先级、ongoing 的倒计时通知；下拉通知栏时不立即消失，暂停后保留 3 秒再收起。
 8. **小米超级岛**：优先走 Android 16 的 Promoted Ongoing（`POST_PROMOTED_NOTIFICATIONS` + `requestPromotedOngoing`），系统支持时上岛，不支持时自然回退普通通知；`miui.focus.param` 作为实验开关预埋，默认关闭。侧载应用无法保证拿到小米官方焦点通知权限。
-9. **类 GitHub 小绿点**：首页展示全年 7 行 × 周的热力图，按当天刷视频时长/额度分 5 档颜色，今天有描边，未来日期淡灰。
+9. **类 GitHub 小绿点**：数据页展示全年 7 行 × 周的热力图，按当天刷视频时长/额度分 5 档颜色，今天有描边，未来日期淡灰。
 10. **无障碍断开提醒**：页面识别服务被系统中断或销毁时，发一条可点击的通知，点按直接跳到系统无障碍设置；重新连接后自动取消。
-11. **版本与仓库**：当前版本 `0.1.2`，每次改动写本日志，每个版本通过 git 提交并推送 GitHub；APK 同时上传 GitHub Release。
+11. **版本与仓库**：当前版本 `0.2.0`，每次改动写本日志，每个版本通过 git 提交并推送 GitHub；APK 同时上传 GitHub Release。
+12. **独立数据页**：数据从首页拆出，包含最近 7 天摘要、每日曲线、每日明细和年度热力图。
+13. **每日曲线与控制计划**：每日曲线标出过去每天的具体时长；用户选择一个希望控制到的目标时长（15–120 分钟），积累至少 3 天记录后，生成 14 天从当前水平滑向目标、带轻微噪声的计划曲线，并自动把每天额度设为计划值。前 3 天先按现有水平，之后逐步下降/上升。
+14. **APK 命名**：构建后自动复制一份带版本号的 APK，例如 `ditch-short-video-0.2.0.apk` / `ditch-short-video-0.2.0-debug.apk`；GitHub Release 也使用该名字。
 
 ### 0.3 第一版明确不做
 
@@ -41,7 +44,7 @@
 - 云同步、账号、多设备
 - 视频内容识别（不判断具体视频内容）
 - 分屏/小窗的精确页面归属
-- 详细统计图表、数据导出
+- 数据导出、跨设备同步
 - 小米以外品牌的“灵动岛”适配
 - 应用商店上架与商店资料；0.1.0 起已切换到 release 签名用于内测，但仍不上架。
 
@@ -61,21 +64,23 @@
 - 调试签名：`keystore/debug.keystore`，alias `androiddebugkey`，store/key 密码均为 `android`。这是公开的调试证书，只用于本地调试，不对外分发。
 - 仓库带 Gradle Wrapper（Gradle `8.14`，bin 分发）；`gradle.properties` 关闭 vfs watch、Kotlin 采用 in-process 编译。当前沙箱的离线缓存缺少 AGP 的 aapt2，因此本机构建时额外传 `-Pandroid.aapt2FromMavenOverride=D:\applications\SDK\build-tools\36.1.0\aapt2.exe`；普通联网环境无需该参数。
 - `settings.gradle.kts` 用 `resolutionStrategy` 将插件坐标指向本地缓存中的 AGP/Kotlin 构件。
-- 本地没有 JUnit 缓存且外网 Maven 不可达，因此不写 `src/test` 单测；页面规则自检放在 App 内“诊断”页运行，共 26 个纯逻辑用例。
-- APK 输出：debug 为 `app/build/outputs/apk/debug/app-debug.apk`；release 为 `app/build/outputs/apk/release/app-release.apk`。0.1.0 起对外分发使用 release APK。
+- 本地没有 JUnit 缓存且外网 Maven 不可达，因此不写 `src/test` 单测；页面规则自检放在 App 内“诊断”页运行，共 28 个纯逻辑用例。
+- APK 输出：debug 为 `app/build/outputs/apk/debug/app-debug.apk`，release 为 `app/build/outputs/apk/release/app-release.apk`；构建结束会自动复制带版本号的 `ditch-short-video-0.2.0.apk` / `ditch-short-video-0.2.0-debug.apk`。0.1.0 起对外分发使用 release APK。
 
 ### 0.5 代码地图
 
 ```
 app/src/main/java/com/gaiding/ditchshortvideo/
 ├── DitchApp.kt                     Application，创建通知渠道
-├── MainActivity.kt                 首页：进度环、准备步骤、App 开关、年度热力图
+├── MainActivity.kt                 首页：进度环、准备步骤、App 开关、数据摘要
 ├── SettingsActivity.kt             额度、提醒文案、权限、计时规则、清空数据、关于
-├── DiagnosticsActivity.kt          运行状态、最近事件、26 项页面规则自检、超级岛诊断
+├── DataActivity.kt                 独立数据页：每日曲线、控制计划、明细、年度热力图
+├── DiagnosticsActivity.kt          运行状态、最近事件、28 项页面规则自检、超级岛诊断
 ├── data/
 │   ├── MonitoredApps.kt            5 个 App 元数据
 │   ├── DayUtils.kt                 日期/时长/文案格式化
-│   ├── Prefs.kt                    设置与提醒文案
+│   ├── PlanEngine.kt               3 天门槛、14 天额度滑降、噪声、自动应用
+│   ├── Prefs.kt                    设置、提醒文案、计划字段
 │   └── UsageStore.kt               每日秒数、400 天清理
 ├── monitor/
 │   ├── ShortVideoAccessibilityService.kt  1 秒 tick、页面事件、暂停、提醒触发
@@ -84,18 +89,59 @@ app/src/main/java/com/gaiding/ditchshortvideo/
 │   ├── PageSnapshot.kt             节点/页面/识别结果模型
 │   ├── MonitorRuntime.kt           运行时状态供 UI 读取
 │   ├── MonitorLog.kt               最近页面/计时事件，诊断页复制
-│   └── DetectorSelfTest.kt         26 个纯逻辑用例
+│   └── DetectorSelfTest.kt         28 个纯逻辑用例
 ├── notify/
 │   ├── ReminderNotifier.kt         通知渠道、超时提醒、测试提醒、上岛 extras
 │   ├── ReminderActionReceiver.kt   通知“关闭提醒”动作
 │   └── XiaomiIsland.kt             小米超级岛诊断与实验参数
 ├── system/SystemStatus.kt          权限/后台状态与跳转
-└── ui/                             平台 View 工具、进度环、热力图
+└── ui/                             平台 View 工具、进度环、热力图、每日曲线
 ```
 
 ---
 
 ## 1. 版本记录
+
+### 0.2.0 — 2026-11-23
+
+数据页与自动控制计划版。用户（m03005）提出：APK 名称带版本号；B 站评论区识别；新增每日曲线；数据单独一页；选择希望控制到的时长后，用几天数据生成带正常波动的计划曲线并自动设置每日额度。
+
+#### 功能与修复
+
+- **独立数据页**：新增 `DataActivity`，集中展示最近 7 天摘要、每日曲线、控制计划、最近 30 天每日明细和年度热力图；首页只保留“你的数据”摘要卡与入口。
+- **每日曲线**：新增 `DailyCurveView`，横轴为 30 天过去 + 计划启用后的 14 天未来，纵轴为分钟；绿色实线为实际时长，琥珀虚线为计划额度，今天有竖线，可横向滑动。
+- **自动控制计划**：新增 `PlanEngine`。至少 3 天有记录后才能生成；目标可选 15/30/45/60/90/120 分钟；以最近 7 天有记录日的平均分钟为起点，14 天滑向目标，每天叠加 ±3 分钟的确定性噪声，范围 1–1440；生成后立即应用当天额度，并在 App 启动、服务启动和日切时继续应用。
+- **计划与手动额度互斥**：手动修改每日额度会关闭自动计划；清空记录也会关闭计划，避免用旧基线继续生成。
+- **B 站评论区**：`ShortVideoDetector.isCommentLike` 增加 B 站专用分支：Activity 含 `Comment`/`Reply`，或页面同时出现至少 2 个“评论/回复/发送/说点什么/条评论”标记，才判评论页；普通播放页单个“评论”按钮不会误判。
+- **版本与 APK 命名**：`versionCode 20` / `versionName 0.2.0`；构建结束自动复制 `ditch-short-video-0.2.0.apk`（release）和 `ditch-short-video-0.2.0-debug.apk`（debug）。
+- **额度输入修复**：设置页额度输入过滤从 3 位改为 4 位，保证能输入 1440。
+
+#### 验证
+
+- `:app:assembleDebug` 与 `:app:assembleRelease` 均成功（约 26–29s）；release APK `ditch-short-video-0.2.0.apk` 约 747 KB。
+- API 36 模拟器：release 覆盖安装成功，版本显示 `v0.2.0`；诊断页 **28/28** 通过。
+- 用 3 天种子数据（30/40/50 分钟）验证计划：目标 30 分钟、起点 40 分钟，第 1 天自动额度 37 分钟；曲线同时显示实际折线与计划虚线，明细显示“今天 50 分钟 · 计划 37 分钟”。
+- 截图更新：`docs/screenshots/home.png`、`data.png`、`plan.png`、`diagnostics.png`。
+
+#### 已知限制
+
+- 计划曲线使用确定性噪声，同一天重绘不会跳变；调整目标后会按当前基线重新生成。
+- 只有 3 天数据时基线波动较大；计划是行为提示，不是强制锁机。
+- 每日曲线只展示最近 30 天实际记录；更早数据仍保留在热力图/本地存储中。
+- B 站评论区的规则已通过 28 项纯逻辑用例，但当前没有安装真实 B 站逐页验证。
+- 计划自动额度与手动额度互斥；手动改额度会关闭计划，这是有意的。
+
+#### 本版仍不做
+
+- 机器学习预测、按 App 分别设额度、计划失败后的强制拦截。
+- 数据导出/备份、云同步、多设备。
+- 应用商店上架。
+
+#### 推荐下一步
+
+1. 让 B 站用户实测“进视频→看评论→返回视频”的计时与 30 秒宽限。
+2. 观察 3 天计划是否太激进；如需要，把 14 天滑降改成可选的“温和/标准”两档。
+3. 收集一加/ColorOS 0.2.0 的“最近事件”，确认 3 秒宽限和计划自动应用没有引入新的停表。
 
 ### 0.1.2 — 2026-11-17
 

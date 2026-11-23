@@ -76,7 +76,9 @@ object ShortVideoDetector {
      */
     fun isCommentLike(page: PageSnapshot): Boolean {
         val activity = page.activityName.orEmpty()
-        if (activity.contains("Comment", ignoreCase = true)) return true
+        if (activity.contains("Comment", ignoreCase = true) ||
+            activity.contains("Reply", ignoreCase = true)
+        ) return true
 
         val labels = page.nodes.flatMap { node ->
             listOf(node.text, node.contentDescription)
@@ -86,6 +88,18 @@ object ShortVideoDetector {
             "发送评论", "条评论", "展开更多回复", "回复 @"
         )
         if (labels.any { label -> markers.any { label.contains(it) } }) return true
+
+        // Bilibili often renders its comment panel as a bottom sheet instead of
+        // a Comment Activity. It may only expose separate "评论" and "回复"
+        // labels, so require two independent hits rather than treating the
+        // single comment button on the video page as a comment panel.
+        if (page.packageName == "tv.danmaku.bili") {
+            val biliComments = listOf("评论", "回复", "发送", "说点什么", "条评论")
+            val hits = biliComments.count { marker ->
+                labels.any { label -> label.contains(marker) }
+            }
+            if (hits >= 2) return true
+        }
 
         val focusedCommentEditor = page.nodes.any {
             it.editable && it.focused &&

@@ -52,6 +52,48 @@ class Prefs(context: Context) {
         get() = sp.getBoolean(KEY_FOCUS_PARAM, false)
         set(value) = sp.edit().putBoolean(KEY_FOCUS_PARAM, value).apply()
 
+    var planEnabled: Boolean
+        get() = sp.getBoolean(KEY_PLAN_ENABLED, false) && planStartDate != null
+        set(value) = sp.edit().putBoolean(KEY_PLAN_ENABLED, value).apply()
+
+    var planGoalMinutes: Int
+        get() = sp.getInt(KEY_PLAN_GOAL, DEFAULT_LIMIT)
+            .coerceIn(PlanEngine.MIN_GOAL, PlanEngine.MAX_GOAL)
+        set(value) = sp.edit().putInt(
+            KEY_PLAN_GOAL,
+            value.coerceIn(PlanEngine.MIN_GOAL, PlanEngine.MAX_GOAL)
+        ).apply()
+
+    var planStartDate: String?
+        get() = sp.getString(KEY_PLAN_START, null)
+        set(value) {
+            val editor = sp.edit()
+            if (value.isNullOrBlank()) editor.remove(KEY_PLAN_START) else editor.putString(KEY_PLAN_START, value)
+            editor.apply()
+        }
+
+    var planBaselineMinutes: Int
+        get() = sp.getInt(KEY_PLAN_BASELINE, DEFAULT_LIMIT).coerceAtLeast(1)
+        set(value) = sp.edit().putInt(KEY_PLAN_BASELINE, value.coerceAtLeast(1)).apply()
+
+    var planLastAppliedDate: String?
+        get() = sp.getString(KEY_PLAN_LAST_APPLIED, null)
+        set(value) {
+            val editor = sp.edit()
+            if (value.isNullOrBlank()) editor.remove(KEY_PLAN_LAST_APPLIED) else editor.putString(KEY_PLAN_LAST_APPLIED, value)
+            editor.apply()
+        }
+
+    fun clearPlan() {
+        sp.edit()
+            .remove(KEY_PLAN_ENABLED)
+            .remove(KEY_PLAN_GOAL)
+            .remove(KEY_PLAN_START)
+            .remove(KEY_PLAN_BASELINE)
+            .remove(KEY_PLAN_LAST_APPLIED)
+            .apply()
+    }
+
     val defaultTitle: String
         get() = appContext.getString(R.string.default_reminder_title)
 
@@ -87,5 +129,10 @@ class Prefs(context: Context) {
         private const val KEY_LAST_REMINDER = "last_reminder_date"
         private const val KEY_ONBOARDING = "onboarding_seen"
         private const val KEY_FOCUS_PARAM = "focus_param_experimental"
+        private const val KEY_PLAN_ENABLED = "plan_enabled"
+        private const val KEY_PLAN_GOAL = "plan_goal_minutes"
+        private const val KEY_PLAN_START = "plan_start_date"
+        private const val KEY_PLAN_BASELINE = "plan_baseline_minutes"
+        private const val KEY_PLAN_LAST_APPLIED = "plan_last_applied_date"
     }
 }
