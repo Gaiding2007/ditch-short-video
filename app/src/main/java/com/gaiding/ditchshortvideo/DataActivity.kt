@@ -122,7 +122,7 @@ class DataActivity : Activity() {
             Ui.sectionHeader(
                 this,
                 "每日曲线",
-                "过去 30 天，标出每天的具体时长；启用计划后会多一条未来曲线。"
+                "过去 30 天，标出每天的具体时长；轻触曲线上的点查看日期与时长，启用计划后会多一条未来曲线。"
             )
         )
         curveSummary = Ui.text(this, "", 12f, Ui.colorOf(this, R.color.ink_soft))

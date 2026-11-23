@@ -20,8 +20,8 @@ android {
         applicationId = "com.gaiding.ditchshortvideo"
         minSdk = 26
         targetSdk = 36
-        versionCode = 20
-        versionName = "0.2.0"
+        versionCode = 21
+        versionName = "0.2.1"
     }
 
     signingConfigs {
