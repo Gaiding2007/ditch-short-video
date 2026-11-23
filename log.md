@@ -123,6 +123,11 @@ app/src/main/java/com/gaiding/ditchshortvideo/
 - 28/28 页面规则自检通过（曲线改动不影响识别逻辑）。
 - 截图更新：`docs/screenshots/data.png`（平滑曲线+标签）、`plan.png`（计划虚线）、`tooltip.png`（触摸浮标）。
 
+#### 发布
+
+- GitHub Release：`v0.2.1`，release id `455563806`；APK asset id `783328856`，`ditch-short-video-0.2.1.apk`，750,576 字节。
+- 下载：https://github.com/Gaiding2007/ditch-short-video/releases/download/v0.2.1/ditch-short-video-0.2.1.apk
+
 #### 已知限制
 
 - 浮标靠近图表顶部/右侧时会放在点的左侧或下方，可能遮住一小段曲线；点本身始终可见。
