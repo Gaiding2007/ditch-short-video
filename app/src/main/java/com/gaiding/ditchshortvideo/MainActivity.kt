@@ -138,14 +138,34 @@ class MainActivity : Activity() {
             LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f)
         )
 
+        val data = Ui.pill(
+            this,
+            "数据",
+            R.drawable.bg_soft_pill,
+            Ui.colorOf(this, R.color.ink)
+        ).apply {
+            setPadding(Ui.dp(this@MainActivity, 12), Ui.dp(this@MainActivity, 8),
+                Ui.dp(this@MainActivity, 12), Ui.dp(this@MainActivity, 8))
+            contentDescription = "打开数据页"
+            setOnClickListener {
+                startActivity(Intent(this@MainActivity, DataActivity::class.java))
+            }
+        }
+        val dataParams = LinearLayout.LayoutParams(
+            ViewGroup.LayoutParams.WRAP_CONTENT,
+            ViewGroup.LayoutParams.WRAP_CONTENT
+        )
+        dataParams.rightMargin = Ui.dp(this, 6)
+        row.addView(data, dataParams)
+
         val settings = Ui.pill(
             this,
             "设置",
             R.drawable.bg_soft_pill,
             Ui.colorOf(this, R.color.ink)
         ).apply {
-            setPadding(Ui.dp(this@MainActivity, 14), Ui.dp(this@MainActivity, 8),
-                Ui.dp(this@MainActivity, 14), Ui.dp(this@MainActivity, 8))
+            setPadding(Ui.dp(this@MainActivity, 12), Ui.dp(this@MainActivity, 8),
+                Ui.dp(this@MainActivity, 12), Ui.dp(this@MainActivity, 8))
             contentDescription = "打开设置"
             setOnClickListener {
                 startActivity(Intent(this@MainActivity, SettingsActivity::class.java))

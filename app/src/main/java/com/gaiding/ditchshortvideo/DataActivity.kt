@@ -1,8 +1,10 @@
 package com.gaiding.ditchshortvideo
 
 import android.app.Activity
+import android.app.AlertDialog
 import android.content.Intent
 import android.graphics.Typeface
+import android.net.Uri
 import android.os.Bundle
 import android.view.Gravity
 import android.view.View
@@ -11,10 +13,12 @@ import android.widget.HorizontalScrollView
 import android.widget.LinearLayout
 import android.widget.ScrollView
 import android.widget.TextView
+import com.gaiding.ditchshortvideo.data.BackupManager
 import com.gaiding.ditchshortvideo.data.DayUtils
 import com.gaiding.ditchshortvideo.data.PlanEngine
 import com.gaiding.ditchshortvideo.data.Prefs
 import com.gaiding.ditchshortvideo.data.UsageStore
+import com.gaiding.ditchshortvideo.share.ChartShare
 import com.gaiding.ditchshortvideo.ui.DailyCurveView
 import com.gaiding.ditchshortvideo.ui.DailyPoint
 import com.gaiding.ditchshortvideo.ui.HeatmapView
@@ -41,6 +45,7 @@ class DataActivity : Activity() {
     private var selectedGoal = 30
     private var curveScrolled = false
     private var heatScrolled = false
+    private var pendingImport: Uri? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -82,6 +87,7 @@ class DataActivity : Activity() {
         content.addView(buildWeekCard(), topMargin(14))
         content.addView(buildCurveCard(), topMargin(14))
         content.addView(buildPlanCard(), topMargin(14))
+        content.addView(buildBackupCard(), topMargin(14))
         content.addView(buildDailyListCard(), topMargin(14))
         content.addView(buildHeatmapCard(), topMargin(14))
         content.addView(buildFooter(), topMargin(22))
@@ -105,6 +111,16 @@ class DataActivity : Activity() {
             topMargin(4)
         )
         row.addView(box, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
+        val share = Ui.pill(
+            this,
+            "分享图",
+            R.drawable.bg_accent_pill,
+            Ui.colorOf(this, R.color.accent_deep)
+        ).apply {
+            contentDescription = "分享每日曲线图片"
+            setOnClickListener { ChartShare.share(this@DataActivity, prefs, usage) }
+        }
+        row.addView(share)
         return row
     }
 
@@ -172,6 +188,90 @@ class DataActivity : Activity() {
         planBody = Ui.column(this)
         card.addView(planBody, topMargin(10))
         return card
+    }
+
+    private fun buildBackupCard(): View {
+        val card = Ui.card(this)
+        card.addView(
+            Ui.sectionHeader(
+                this,
+                "备份与导出",
+                "导出一个 JSON 文件，包含设置和每日记录；导入时会覆盖当前数据。"
+            )
+        )
+        val actions = Ui.row(this)
+        val export = Ui.button(this, "导出备份", primary = false).apply {
+            setOnClickListener { pickExport() }
+        }
+        actions.addView(export, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
+        val import = Ui.button(this, "导入备份", primary = false).apply {
+            setOnClickListener { pickImport() }
+        }
+        val importParams = LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f)
+        importParams.leftMargin = Ui.dp(this, 8)
+        actions.addView(import, importParams)
+        card.addView(actions, topMargin(12))
+        card.addView(
+            Ui.text(this, "文件由你选择保存位置，不会上传；建议同时保留一份到电脑。", 10f, Ui.colorOf(this, R.color.ink_faint)),
+            topMargin(8)
+        )
+        return card
+    }
+
+    private fun pickExport() {
+        val intent = Intent(Intent.ACTION_CREATE_DOCUMENT).apply {
+            addCategory(Intent.CATEGORY_OPENABLE)
+            type = "application/json"
+            putExtra(Intent.EXTRA_TITLE, BackupManager.suggestedName())
+        }
+        startActivityForResult(intent, REQUEST_EXPORT)
+    }
+
+    private fun pickImport() {
+        val intent = Intent(Intent.ACTION_OPEN_DOCUMENT).apply {
+            addCategory(Intent.CATEGORY_OPENABLE)
+            type = "*/*"
+            putExtra(
+                Intent.EXTRA_MIME_TYPES,
+                arrayOf("application/json", "text/plain", "application/octet-stream")
+            )
+        }
+        startActivityForResult(intent, REQUEST_IMPORT)
+    }
+
+    @Deprecated("Deprecated in Java")
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+        super.onActivityResult(requestCode, resultCode, data)
+        if (resultCode != RESULT_OK) return
+        val uri = data?.data ?: return
+        when (requestCode) {
+            REQUEST_EXPORT -> {
+                val ok = BackupManager.export(this, prefs, usage, uri)
+                Ui.toast(this, if (ok) "备份已导出" else "导出失败，请换个位置再试")
+            }
+            REQUEST_IMPORT -> {
+                pendingImport = uri
+                AlertDialog.Builder(this)
+                    .setTitle("导入备份？")
+                    .setMessage("会覆盖当前设置和所有每日记录。导入后可在数据页检查。")
+                    .setNegativeButton("取消", null)
+                    .setPositiveButton("导入") { _, _ ->
+                        val source = pendingImport
+                        pendingImport = null
+                        if (source == null) return@setPositiveButton
+                        try {
+                            val result = BackupManager.import(this, prefs, usage, source)
+                            selectedGoal = prefs.planGoalMinutes
+                            PlanEngine.applyToday(prefs, usage)
+                            refreshAll()
+                            Ui.toast(this, "已导入 ${result.days} 天记录")
+                        } catch (e: Exception) {
+                            Ui.toast(this, e.message ?: "导入失败")
+                        }
+                    }
+                    .show()
+            }
+        }
     }
 
     private fun buildDailyListCard(): View {
@@ -311,11 +411,7 @@ class DataActivity : Activity() {
     private fun renderPlanBody() {
         planBody.removeAllViews()
         val state = PlanEngine.state(prefs, usage)
-        selectedGoal = if (prefs.planGoalMinutes in PlanEngine.goalOptions) {
-            prefs.planGoalMinutes
-        } else {
-            30
-        }
+        if (selectedGoal !in PlanEngine.goalOptions) selectedGoal = 30
 
         val goalLabel = Ui.text(this, "希望控制到", 12f, Ui.colorOf(this, R.color.ink_soft))
         planBody.addView(goalLabel)
@@ -326,24 +422,26 @@ class DataActivity : Activity() {
             val chip = Ui.text(
                 this,
                 "$value 分",
-                11f,
+                10f,
                 Ui.colorOf(this, if (selected) R.color.accent_deep else R.color.ink_soft),
                 bold = true
             ).apply {
                 gravity = Gravity.CENTER
                 setBackgroundResource(if (selected) R.drawable.bg_accent_pill else R.drawable.bg_soft_pill)
-                setPadding(Ui.dp(this@DataActivity, 8), Ui.dp(this@DataActivity, 6),
-                    Ui.dp(this@DataActivity, 8), Ui.dp(this@DataActivity, 6))
+                setPadding(Ui.dp(this@DataActivity, 4), Ui.dp(this@DataActivity, 7),
+                    Ui.dp(this@DataActivity, 4), Ui.dp(this@DataActivity, 7))
+                isClickable = true
                 setOnClickListener {
                     selectedGoal = value
                     renderPlanBody()
                 }
             }
             val params = LinearLayout.LayoutParams(
+                0,
                 ViewGroup.LayoutParams.WRAP_CONTENT,
-                ViewGroup.LayoutParams.WRAP_CONTENT
+                1f
             )
-            if (index > 0) params.leftMargin = Ui.dp(this, 4)
+            if (index > 0) params.leftMargin = Ui.dp(this, 3)
             goals.addView(chip, params)
         }
         planBody.addView(goals, topMargin(8))
@@ -501,4 +599,9 @@ class DataActivity : Activity() {
             ViewGroup.LayoutParams.MATCH_PARENT,
             ViewGroup.LayoutParams.WRAP_CONTENT
         ).also { it.topMargin = Ui.dp(this, dp) }
+
+    private companion object {
+        const val REQUEST_EXPORT = 1001
+        const val REQUEST_IMPORT = 1002
+    }
 }

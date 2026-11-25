@@ -46,6 +46,23 @@ class UsageStore(context: Context) {
         sp.edit().clear().apply()
     }
 
+    /** All retained daily records, for local backup only. */
+    fun snapshot(): Map<LocalDate, Long> = sp.all.entries.mapNotNull { (key, value) ->
+        if (!key.startsWith(DAY_PREFIX) || value !is Long) return@mapNotNull null
+        val date = DayUtils.parseDate(key.substring(DAY_PREFIX.length)) ?: return@mapNotNull null
+        date to value.coerceAtLeast(0L)
+    }.toMap()
+
+    /** Replaces the usage records after a validated backup import. */
+    fun replaceAll(records: Map<LocalDate, Long>) {
+        val editor = sp.edit().clear()
+        records.forEach { (date, seconds) ->
+            if (seconds > 0L) editor.putLong(dayKey(date), seconds)
+        }
+        editor.putString(KEY_LAST_PRUNE, DayUtils.today().toString())
+        editor.apply()
+    }
+
     private fun pruneIfNeeded(today: LocalDate) {
         val lastPrune = sp.getString(KEY_LAST_PRUNE, null)
         if (lastPrune == today.toString()) return

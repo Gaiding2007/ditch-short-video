@@ -140,7 +140,7 @@ class SettingsActivity : Activity() {
             Ui.text(this, "开启超时提醒", 14f, Ui.colorOf(this, R.color.ink), bold = true)
         )
         switchText.addView(
-            Ui.text(this, "系统允许时尝试上小米超级岛，否则普通通知", 11f, Ui.colorOf(this, R.color.ink_soft)),
+            Ui.text(this, "到额度后发一条通知；支持的系统会自动上岛", 11f, Ui.colorOf(this, R.color.ink_soft)),
             topMargin(3)
         )
         switchRow.addView(
@@ -188,11 +188,6 @@ class SettingsActivity : Activity() {
         val save = Ui.button(this, "保存文案", primary = true)
         save.setOnClickListener { saveReminderText(showToast = true) }
         actions.addView(save, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
-        val test = Ui.button(this, "发送测试", primary = false)
-        val testParams = LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f)
-        testParams.leftMargin = Ui.dp(this, 8)
-        test.setOnClickListener { sendTest() }
-        actions.addView(test, testParams)
         card.addView(actions, topMargin(12))
 
         val reset = Ui.ghostButton(this, "恢复默认文案")
@@ -328,7 +323,7 @@ class SettingsActivity : Activity() {
         ) { SystemStatus.openAccessibilitySettings(this) }
         permissionRow(
             "通知权限",
-            "超时提醒和测试提醒",
+            "超时提醒和计时状态",
             SystemStatus.notificationsAllowed(this)
         ) { SystemStatus.openNotificationSettings(this) }
         permissionRow(
@@ -458,16 +453,6 @@ class SettingsActivity : Activity() {
         val title = prefs.renderedTitle(used, limit)
         val body = prefs.renderedBody(used, limit)
         preview.text = "预览：\n$title\n$body"
-    }
-
-    private fun sendTest() {
-        if (!saveReminderText(showToast = false)) return
-        if (!ReminderNotifier.sendTest(this, prefs)) {
-            Ui.toast(this, "发不出去：请先允许通知")
-            SystemStatus.openNotificationSettings(this)
-            return
-        }
-        Ui.toast(this, "测试提醒已发送")
     }
 
     private fun confirmClear() {

@@ -4,7 +4,6 @@ import android.app.Activity
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Intent
-import android.content.res.ColorStateList
 import android.graphics.drawable.GradientDrawable
 import android.os.Build
 import android.os.Bundle
@@ -17,20 +16,15 @@ import android.view.ViewGroup
 import android.widget.FrameLayout
 import android.widget.LinearLayout
 import android.widget.ScrollView
-import android.widget.Switch
 import android.widget.TextView
-import com.gaiding.ditchshortvideo.data.Prefs
 import com.gaiding.ditchshortvideo.monitor.DetectorSelfTest
 import com.gaiding.ditchshortvideo.monitor.MonitorLog
 import com.gaiding.ditchshortvideo.monitor.MonitorRuntime
-import com.gaiding.ditchshortvideo.notify.ReminderNotifier
 import com.gaiding.ditchshortvideo.notify.XiaomiIsland
 import com.gaiding.ditchshortvideo.system.SystemStatus
 import com.gaiding.ditchshortvideo.ui.Ui
-import java.util.Locale
 
 class DiagnosticsActivity : Activity() {
-    private lateinit var prefs: Prefs
     private lateinit var statusPill: TextView
     private lateinit var runtimeText: TextView
     private lateinit var eventText: TextView
@@ -49,7 +43,6 @@ class DiagnosticsActivity : Activity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        prefs = Prefs(this)
         setContentView(buildScreen())
     }
 
@@ -185,53 +178,13 @@ class DiagnosticsActivity : Activity() {
         card.addView(
             Ui.sectionHeader(
                 this,
-                "小米超级岛",
-                "系统允许就上岛，否则普通通知兜底"
+                "系统通知",
+                "到额度后发通知；系统允许时自动上岛"
             )
         )
         islandInfo = Ui.text(this, XiaomiIsland.describe(this), 11f, Ui.colorOf(this, R.color.ink_soft))
         islandInfo.setLineSpacing(Ui.dp(this, 2).toFloat(), 1.2f)
         card.addView(islandInfo, topMargin(10))
-
-        card.addView(Ui.divider(this), topMargin(10))
-
-        val switchRow = Ui.row(this).apply {
-            setPadding(0, Ui.dp(this@DiagnosticsActivity, 10), 0, 0)
-        }
-        val textBox = Ui.column(this)
-        textBox.addView(
-            Ui.text(this, "实验：附加小米焦点通知参数", 13f, Ui.colorOf(this, R.color.ink), bold = true)
-        )
-        textBox.addView(
-            Ui.text(this, "侧载应用通常拿不到官方权限，系统可能整包忽略；普通通知仍会显示。", 10f, Ui.colorOf(this, R.color.ink_soft)),
-            topMargin(3)
-        )
-        switchRow.addView(textBox, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
-        val toggle = Switch(this).apply {
-            isChecked = prefs.focusParamExperimental
-            contentDescription = "实验性小米焦点通知参数"
-            styleSwitch(this)
-            setOnCheckedChangeListener { _, checked ->
-                prefs.focusParamExperimental = checked
-                Ui.toast(
-                    this@DiagnosticsActivity,
-                    if (checked) "已开启，仅影响测试提醒" else "已关闭实验参数"
-                )
-            }
-        }
-        switchRow.addView(toggle)
-        card.addView(switchRow)
-
-        val test = Ui.button(this, "发送测试提醒", primary = false)
-        test.setOnClickListener {
-            if (!ReminderNotifier.sendTest(this, prefs)) {
-                Ui.toast(this, "发不出去：请先允许通知")
-                SystemStatus.openNotificationSettings(this)
-            } else {
-                Ui.toast(this, "测试提醒已发送")
-            }
-        }
-        card.addView(test, topMargin(12))
         return card
     }
 
@@ -411,17 +364,6 @@ class DiagnosticsActivity : Activity() {
         val clipboard = getSystemService(ClipboardManager::class.java)
         clipboard.setPrimaryClip(ClipData.newPlainText("ditch-short-video diagnostics", text))
         Ui.toast(this, "诊断信息已复制")
-    }
-
-    private fun styleSwitch(sw: Switch) {
-        sw.thumbTintList = ColorStateList(
-            arrayOf(intArrayOf(android.R.attr.state_checked), intArrayOf()),
-            intArrayOf(Ui.colorOf(this, R.color.accent), Ui.colorOf(this, R.color.white))
-        )
-        sw.trackTintList = ColorStateList(
-            arrayOf(intArrayOf(android.R.attr.state_checked), intArrayOf()),
-            intArrayOf(Ui.colorOf(this, R.color.accent_soft), Ui.colorOf(this, R.color.divider))
-        )
     }
 
     private fun topMargin(dp: Int): LinearLayout.LayoutParams =

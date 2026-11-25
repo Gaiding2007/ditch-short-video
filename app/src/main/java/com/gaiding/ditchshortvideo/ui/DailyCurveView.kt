@@ -49,8 +49,9 @@ class DailyCurveView @JvmOverloads constructor(
     private val rightPad = dp(14f)
     private val topPad = dp(22f)
     private val bottomPad = dp(32f)
-    private val columnWidth = dp(25f)
+    private var columnWidth = dp(25f)
     private val chartHeight = dp(224f)
+    private var fitToWidth = false
 
     private val gridPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         color = 0x1F1E2A24
@@ -162,9 +163,20 @@ class DailyCurveView @JvmOverloads constructor(
         return max(0, (center - viewportWidth / 3f).toInt())
     }
 
+    /** Fit all points into the measured width; used by the share-image renderer. */
+    fun setFitToWidth(enabled: Boolean) {
+        fitToWidth = enabled
+        requestLayout()
+        invalidate()
+    }
+
     override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
         val desiredWidth = leftPad + rightPad + max(1, points.size) * columnWidth
         val width = resolveSize(desiredWidth.toInt(), widthMeasureSpec)
+        if (fitToWidth) {
+            val available = (width - leftPad - rightPad).coerceAtLeast(dp(1f))
+            columnWidth = (available / max(1, points.size)).coerceAtLeast(dp(3f))
+        }
         val height = resolveSize(chartHeight.toInt(), heightMeasureSpec)
         setMeasuredDimension(width, height)
     }

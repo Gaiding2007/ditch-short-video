@@ -54,6 +54,12 @@
             android:name=".notify.ReminderActionReceiver"
             android:exported="false" />
 
+        <provider
+            android:name=".share.ShareProvider"
+            android:authorities="${applicationId}.share"
+            android:exported="false"
+            android:grantUriPermissions="true" />
+
         <service
             android:name=".monitor.ShortVideoAccessibilityService"
             android:exported="true"
