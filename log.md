@@ -2,8 +2,8 @@
 
 > 仓库：<https://github.com/Gaiding2007/ditch-short-video>
 > 包名：`com.gaiding.ditchshortvideo`
-> 当前版本：`0.2.2`（versionCode `22`）
-> 当前阶段：0.2.2 数据工具版；修复控制计划档位点选，首页增加“数据”入口，数据页加入分享图和本地 JSON 备份/导入；移除设置/诊断里的小米超级岛测试入口。
+> 当前版本：`0.2.3`（versionCode `23`）
+> 当前阶段：0.2.3 分享预览与后台守护版；分享图先弹预览再分享；新增前台守护服务、15 分钟断线 watchdog、断开提醒与 OPPO/ColorOS 保活引导。
 
 ---
 
@@ -30,11 +30,13 @@
 8. **小米超级岛**：优先走 Android 16 的 Promoted Ongoing（`POST_PROMOTED_NOTIFICATIONS` + `requestPromotedOngoing`），系统支持时上岛，不支持时自然回退普通通知。0.2.2 起不再在设置/诊断里暴露测试开关，通知由系统自动处理。
 9. **类 GitHub 小绿点**：数据页展示全年 7 行 × 周的热力图，按当天刷视频时长/额度分 5 档颜色，今天有描边，未来日期淡灰。
 10. **无障碍断开提醒**：页面识别服务被系统中断或销毁时，发一条可点击的通知，点按直接跳到系统无障碍设置；重新连接后自动取消。
-11. **版本与仓库**：当前版本 `0.2.2`，每次改动写本日志，每个版本通过 git 提交并推送 GitHub；APK 同时上传 GitHub Release。
+11. **版本与仓库**：当前版本 `0.2.3`，每次改动写本日志，每个版本通过 git 提交并推送 GitHub；APK 同时上传 GitHub Release。
 12. **独立数据页**：数据从首页拆出，包含最近 7 天摘要、每日曲线、每日明细和年度热力图；首页右上角提供“数据”入口，不必向下滚动。
 13. **每日曲线与控制计划**：每日曲线用平滑曲线标出过去每天的具体时长，点上显示分钟标签；触摸点会弹出小标签，显示具体日期、实际时长和计划额度。用户选择一个希望控制到的目标时长（15–120 分钟），积累至少 3 天记录后，生成 14 天从当前水平滑向目标、带轻微噪声的计划曲线，并自动把每天额度设为计划值。前 3 天先按现有水平，之后逐步下降/上升。目标档位可直接点选；启用后可按新目标更新或关闭。
-14. **APK 命名**：构建后自动复制一份带版本号的 APK，例如 `ditch-short-video-0.2.2.apk` / `ditch-short-video-0.2.2-debug.apk`；GitHub Release 也使用该名字。
+14. **APK 命名**：构建后自动复制一份带版本号的 APK，例如 `ditch-short-video-0.2.3.apk` / `ditch-short-video-0.2.3-debug.apk`；GitHub Release 也使用该名字。
 15. **分享图与本地备份**：数据页可把最近 30 天曲线渲染成 PNG 并调用系统分享面板；也可把设置、监控 App、计划状态和每日记录导出为 JSON，或从 JSON 导入恢复（导入覆盖当前数据）。文件由系统文件选择器选择，不上传。
+16. **分享预览**：0.2.3 起点“分享图”先生成图片并弹出预览，确认后才调用系统分享面板；取消时释放位图。
+17. **后台守护（尽力而为）**：0.2.3 起用 `specialUse` 前台服务 + 15 分钟 AlarmManager watchdog 降低 ColorOS 清理概率；服务断开时发可点击通知。Android 不允许普通 App 自行重新启用无障碍，被强行停止后仍需用户点一次，不能承诺 100% 不被杀。
 
 ### 0.3 第一版明确不做
 
@@ -66,7 +68,7 @@
 - 仓库带 Gradle Wrapper（Gradle `8.14`，bin 分发）；`gradle.properties` 关闭 vfs watch、Kotlin 采用 in-process 编译。当前沙箱的离线缓存缺少 AGP 的 aapt2，因此本机构建时额外传 `-Pandroid.aapt2FromMavenOverride=D:\applications\SDK\build-tools\36.1.0\aapt2.exe`；普通联网环境无需该参数。
 - `settings.gradle.kts` 用 `resolutionStrategy` 将插件坐标指向本地缓存中的 AGP/Kotlin 构件。
 - 本地没有 JUnit 缓存且外网 Maven 不可达，因此不写 `src/test` 单测；页面规则自检放在 App 内“诊断”页运行，共 28 个纯逻辑用例。
-- APK 输出：debug 为 `app/build/outputs/apk/debug/app-debug.apk`，release 为 `app/build/outputs/apk/release/app-release.apk`；构建结束会自动复制带版本号的 `ditch-short-video-0.2.2.apk` / `ditch-short-video-0.2.2-debug.apk`。0.1.0 起对外分发使用 release APK。
+- APK 输出：debug 为 `app/build/outputs/apk/debug/app-debug.apk`，release 为 `app/build/outputs/apk/release/app-release.apk`；构建结束会自动复制带版本号的 `ditch-short-video-0.2.3.apk` / `ditch-short-video-0.2.3-debug.apk`。0.1.0 起对外分发使用 release APK。
 
 ### 0.5 代码地图
 
@@ -91,13 +93,17 @@ app/src/main/java/com/gaiding/ditchshortvideo/
 │   ├── PageSnapshot.kt             节点/页面/识别结果模型
 │   ├── MonitorRuntime.kt           运行时状态供 UI 读取
 │   ├── MonitorLog.kt               最近页面/计时事件，诊断页复制
+│   ├── Guardian.kt                 守护通知渠道、15 分钟 watchdog、断开提醒
+│   ├── KeepAliveService.kt         specialUse 前台守护服务
+│   ├── GuardReceiver.kt            watchdog 检查与恢复
+│   ├── BootReceiver.kt             开机重建 watchdog
 │   └── DetectorSelfTest.kt         28 个纯逻辑用例
 ├── notify/
 │   ├── ReminderNotifier.kt         通知渠道、超时提醒、上岛 extras
 │   ├── ReminderActionReceiver.kt   通知“关闭提醒”动作
 │   └── XiaomiIsland.kt             小米超级岛诊断与实验参数
 ├── share/
-│   ├── ChartShare.kt               生成最近 30 天曲线 PNG 并调系统分享
+│   ├── ChartShare.kt               生成最近 30 天曲线 PNG、预览与系统分享
 │   └── ShareProvider.kt            只读 ContentProvider，临时共享图表
 ├── system/SystemStatus.kt          权限/后台状态与跳转
 └── ui/                             平台 View 工具、进度环、热力图、每日曲线
@@ -106,6 +112,47 @@ app/src/main/java/com/gaiding/ditchshortvideo/
 ---
 
 ## 1. 版本记录
+
+### 0.2.3 — 2026-11-26
+
+分享预览与后台守护版。用户（m05916）提出：分享图应先有预览；版本号 0.2.3；OPPO 用户反馈 ColorOS 经常把页面识别/后台断掉，碎片化刷视频时大部分时间监测不到，希望克服。用户同时肯定整体好用。
+
+#### 功能与修复
+
+- **分享图预览**：`ChartShare` 拆成 `RenderedChart(bitmap, uri)`、`create()` 和 `share()`；`DataActivity.showSharePreview()` 先弹 `AlertDialog` + `ImageView` 预览，按钮“取消/分享”；确认后才打开系统分享面板，dismiss 时回收位图。
+- **前台守护**：新增 `KeepAliveService`（`specialUse` 前台服务，低重要度常驻通知），在无障碍连接、主界面 `onResume`、开机后尝试启动；通知 id `2100`，渠道 `guard_service_v1`。
+- **断线 watchdog**：新增 `Guardian`、`GuardReceiver`、`BootReceiver`；每 15 分钟用 `AlarmManager.setAndAllowWhileIdle` 检查无障碍是否仍启用/连接：服务活着就尝试拉起 FGS，断开就发“页面识别已断开”通知（id `2101`，渠道 `guard_alert_v1`，点按去无障碍设置）。
+- **OPPO/ColorOS 引导**：`SystemStatus.isOppo()` 识别 OPPO/OnePlus/realme；`SettingsActivity` 增加“后台守护”权限行；OPPO 设备额外显示保活卡（自启动、电池无限制、最近任务加锁、允许后台运行）和“打开自启动设置/应用详情”按钮。
+- **版本**：`versionCode 23` / `versionName 0.2.3`；APK 自动命名 `ditch-short-video-0.2.3.apk` / `ditch-short-video-0.2.3-debug.apk`。
+
+#### 验证
+
+- `:app:assembleDebug` 成功（38 tasks），debug APK `ditch-short-video-0.2.3-debug.apk`，1,036,936 字节；`:app:assembleRelease` 成功（25s，45 tasks），release APK `ditch-short-video-0.2.3.apk`，766,428 字节。仅有既有弃用警告。
+- release 包已卸载 debug 后安装到 API 36 模拟器，版本 v0.2.3；28/28 页面规则自检通过。
+- API 36 模拟器：分享预览弹窗正常，图内包含 v0.2.3、曲线和图例；点“分享”可打开系统分享面板；空数据预览的 Y 轴新增最小 4 单位，避免出现重复的“0 0 1 2 2”标签。
+- `dumpsys activity services` 确认 release 的 `KeepAliveService` 运行且 `isForeground=true`，类型 `specialUse`；`dumpsys alarm` 确认 `GuardReceiver` 的 15 分钟 `ELAPSED_WAKEUP` 已安排。
+- 用仅 debug 的 `GuardDebugReceiver` 触发 `Guardian.notifyDisconnected`，`dumpsys notification` 确认 id `2101`、渠道 `guard_alert_v1`、标题“页面识别已断开”；该 debug receiver 已删除，发布包不包含。
+- 设置页出现“后台守护”行（前台服务运行时显示已开启）；模拟器非 OPPO，ColorOS 保活卡未显示，真机路径待验证。
+
+#### 已知限制
+
+- **Android 安全限制**：普通 App 不能自行重新启用无障碍服务。被系统“强行停止”/清理后，用户仍需手动打开一次 App 或无障碍设置；本版只能降低被清理概率、尽快提醒、把恢复入口做短，不能承诺 100% 不断开。
+- 前台服务会显示一条低重要度常驻通知；这是 Android 对前台服务的硬性要求。
+- 15 分钟 watchdog 是 `setAndAllowWhileIdle`，Doze 下可能被推迟；系统彻底 force-stop 后闹钟也会被取消，直到用户再次打开 App 或重启。
+- ColorOS 各版本设置路径不同，`openAutoStartSettings()` 失败时回退应用详情，需要用户按卡片文字手动找。
+- 分享预览在超大字体/小屏上可能挤压按钮；目前只在 API 36 模拟器验证。
+
+#### 本版仍不做
+
+- 绕过系统安全模型自动重开无障碍、隐藏前台服务通知。
+- 云端保活、账号多设备、远程唤醒。
+- 针对每个 OPPO 型号做精确设置深链。
+
+#### 推荐下一步
+
+1. 找一台真实 OPPO/ColorOS 手机跑 24 小时，记录 FGS 是否被清、watchdog 提醒是否到达、重启后是否恢复。
+2. 若 ColorOS 仍频繁清理，再评估引导用户把 App 加入“允许后台运行/自启动/最近任务锁定”，而不是继续加隐蔽保活。
+3. 观察分享预览弹窗在窄屏、大字体下的按钮布局。
 
 ### 0.2.2 — 2026-11-25
 

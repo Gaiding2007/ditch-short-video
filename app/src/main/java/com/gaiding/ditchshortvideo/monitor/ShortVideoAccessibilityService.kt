@@ -88,6 +88,10 @@ class ShortVideoAccessibilityService : AccessibilityService() {
         }
 
         connected = true
+        prefs.guardArmed = true
+        Guardian.ensureChannels(this)
+        Guardian.schedule(this)
+        KeepAliveService.start(this)
         lastReminderAttempt = -60_000L
         MonitorLog.add("无障碍服务已连接")
         ReminderNotifier.cancelServiceStopped(this)

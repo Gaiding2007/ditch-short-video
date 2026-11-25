@@ -12,6 +12,15 @@
     <string name="service_channel_description">页面识别断开时提醒，点击可重新开启</string>
     <string name="service_stopped_title">计时已停止</string>
     <string name="service_stopped_body">页面识别被系统关闭了。点这里重新开启，计时才会继续。</string>
+    <string name="guard_channel_name">后台守护</string>
+    <string name="guard_channel_description">尽量保持页面识别进程存活；断开时提醒你恢复</string>
+    <string name="guard_alert_channel_name">页面识别断开提醒</string>
+    <string name="guard_alert_channel_description">页面识别被系统清理或关闭时提醒</string>
+    <string name="guard_title">页面识别守护中</string>
+    <string name="guard_text">切到后台也会尽量保持；断开时会提醒你。</string>
+    <string name="guard_disconnected_title">页面识别已断开</string>
+    <string name="guard_disconnected_body">系统可能清理了后台。点此重新开启，计时才会继续。</string>
+    <string name="guard_action">去开启</string>
     <string name="default_reminder_title">今天的短视频额度用完了</string>
     <string name="default_reminder_body">已经看了 {used} 分钟，限额是 {limit} 分钟。把手机放下，去做点真正想做的事吧。</string>
 </resources>

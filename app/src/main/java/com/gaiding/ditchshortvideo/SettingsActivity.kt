@@ -20,6 +20,7 @@ import android.widget.TextView
 import com.gaiding.ditchshortvideo.data.DayUtils
 import com.gaiding.ditchshortvideo.data.Prefs
 import com.gaiding.ditchshortvideo.data.UsageStore
+import com.gaiding.ditchshortvideo.monitor.KeepAliveService
 import com.gaiding.ditchshortvideo.notify.ReminderNotifier
 import com.gaiding.ditchshortvideo.system.SystemStatus
 import com.gaiding.ditchshortvideo.ui.Ui
@@ -68,6 +69,7 @@ class SettingsActivity : Activity() {
         content.addView(buildLimitCard(), topMargin(16))
         content.addView(buildReminderCard(), topMargin(14))
         content.addView(buildPermissionsCard(), topMargin(14))
+        if (SystemStatus.isOppo()) content.addView(buildColorOsCard(), topMargin(14))
         content.addView(buildRulesCard(), topMargin(14))
         content.addView(buildDataCard(), topMargin(14))
         content.addView(buildAboutCard(), topMargin(14))
@@ -218,6 +220,64 @@ class SettingsActivity : Activity() {
         return card
     }
 
+    private fun buildColorOsCard(): View {
+        val card = Ui.card(this)
+        card.addView(
+            Ui.sectionHeader(
+                this,
+                "OPPO / ColorOS 保活",
+                "ColorOS 清理后台时，页面识别会断开。把下面几项打开，能明显减少断开。"
+            )
+        )
+        val steps = listOf(
+            "设置 → 电池 → 应用耗电管理 → 扔掉短视频：允许后台活动",
+            "设置 → 应用 → 自启动：允许扔掉短视频自启动",
+            "在最近任务里下拉或长按本应用，选择“锁定”",
+            "关闭“睡眠待机优化”，避免夜间被清理"
+        )
+        steps.forEach { step ->
+            val row = Ui.row(this)
+            val dot = View(this).apply {
+                background = GradientDrawable().apply {
+                    shape = GradientDrawable.OVAL
+                    setColor(Ui.colorOf(this@SettingsActivity, R.color.warning))
+                }
+                layoutParams = LinearLayout.LayoutParams(
+                    Ui.dp(this@SettingsActivity, 5),
+                    Ui.dp(this@SettingsActivity, 5)
+                )
+            }
+            row.addView(dot)
+            val text = Ui.text(this, step, 12f, Ui.colorOf(this, R.color.ink_soft))
+            val params = LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f)
+            params.leftMargin = Ui.dp(this, 8)
+            row.addView(text, params)
+            card.addView(row, topMargin(7))
+        }
+        val actions = Ui.row(this)
+        val startup = Ui.button(this, "打开自启动设置", primary = false).apply {
+            setOnClickListener { SystemStatus.openAutoStartSettings(this@SettingsActivity) }
+        }
+        actions.addView(startup, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
+        val details = Ui.button(this, "应用详情", primary = false).apply {
+            setOnClickListener { SystemStatus.openAppDetails(this@SettingsActivity) }
+        }
+        val detailParams = LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f)
+        detailParams.leftMargin = Ui.dp(this, 8)
+        actions.addView(details, detailParams)
+        card.addView(actions, topMargin(12))
+        card.addView(
+            Ui.text(
+                this,
+                "系统不让 App 自己重新打开无障碍；如果被强行停止，仍需回来点一次。前台守护会尽量让它不被停。",
+                10f,
+                Ui.colorOf(this, R.color.ink_faint)
+            ),
+            topMargin(8)
+        )
+        return card
+    }
+
     private fun buildRulesCard(): View {
         val card = Ui.card(this)
         card.addView(
@@ -331,6 +391,18 @@ class SettingsActivity : Activity() {
             "避免计时服务被系统清理",
             SystemStatus.batteryUnrestricted(this)
         ) { SystemStatus.openBatterySettings(this) }
+        permissionRow(
+            "后台守护",
+            "前台服务尽量保持页面识别，断开时可提醒",
+            KeepAliveService.running
+        ) {
+            if (SystemStatus.accessibilityEnabled(this)) {
+                KeepAliveService.start(this)
+                Ui.toast(this, "守护服务已启动")
+            } else {
+                SystemStatus.openAccessibilitySettings(this)
+            }
+        }
     }
 
     private fun permissionRow(

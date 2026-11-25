@@ -52,6 +52,11 @@ class Prefs(context: Context) {
         get() = sp.getBoolean(KEY_FOCUS_PARAM, false)
         set(value) = sp.edit().putBoolean(KEY_FOCUS_PARAM, value).apply()
 
+    /** True once the accessibility service has connected at least once. */
+    var guardArmed: Boolean
+        get() = sp.getBoolean(KEY_GUARD_ARMED, false)
+        set(value) = sp.edit().putBoolean(KEY_GUARD_ARMED, value).apply()
+
     var planEnabled: Boolean
         get() = sp.getBoolean(KEY_PLAN_ENABLED, false) && planStartDate != null
         set(value) = sp.edit().putBoolean(KEY_PLAN_ENABLED, value).apply()
@@ -129,6 +134,7 @@ class Prefs(context: Context) {
         private const val KEY_LAST_REMINDER = "last_reminder_date"
         private const val KEY_ONBOARDING = "onboarding_seen"
         private const val KEY_FOCUS_PARAM = "focus_param_experimental"
+        private const val KEY_GUARD_ARMED = "guard_armed"
         private const val KEY_PLAN_ENABLED = "plan_enabled"
         private const val KEY_PLAN_GOAL = "plan_goal_minutes"
         private const val KEY_PLAN_START = "plan_start_date"

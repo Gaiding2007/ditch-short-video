@@ -29,9 +29,20 @@ object ChartShare {
     private const val WIDTH = 1440
     private val dateFormat = DateTimeFormatter.ofPattern("yyyy年M月d日", Locale.CHINA)
 
-    fun share(activity: Activity, prefs: Prefs, usage: UsageStore) {
+    /** The bitmap is kept for the preview dialog; the file behind [uri] is what gets shared. */
+    data class RenderedChart(val bitmap: Bitmap, val uri: Uri)
+
+    fun create(activity: Activity, prefs: Prefs, usage: UsageStore): RenderedChart? {
+        return try {
+            render(activity, prefs, usage)
+        } catch (_: Exception) {
+            android.widget.Toast.makeText(activity, "生成分享图失败", android.widget.Toast.LENGTH_SHORT).show()
+            null
+        }
+    }
+
+    fun share(activity: Activity, uri: Uri) {
         try {
-            val uri = render(activity, prefs, usage)
             val send = Intent(Intent.ACTION_SEND).apply {
                 type = "image/png"
                 putExtra(Intent.EXTRA_STREAM, uri)
@@ -40,11 +51,11 @@ object ChartShare {
             }
             activity.startActivity(Intent.createChooser(send, "分享每日曲线"))
         } catch (_: Exception) {
-            android.widget.Toast.makeText(activity, "生成分享图失败", android.widget.Toast.LENGTH_SHORT).show()
+            android.widget.Toast.makeText(activity, "没有可用的分享应用", android.widget.Toast.LENGTH_SHORT).show()
         }
     }
 
-    private fun render(activity: Activity, prefs: Prefs, usage: UsageStore): Uri {
+    private fun render(activity: Activity, prefs: Prefs, usage: UsageStore): RenderedChart {
         val points = curvePoints(prefs, usage)
         val density = activity.resources.displayMetrics.density
         val root = LinearLayout(activity).apply {
@@ -118,8 +129,7 @@ object ChartShare {
         val dir = File(activity.cacheDir, "share").apply { mkdirs() }
         val file = File(dir, ShareProvider.CHART_NAME)
         FileOutputStream(file).use { bitmap.compress(Bitmap.CompressFormat.PNG, 100, it) }
-        bitmap.recycle()
-        return ShareProvider.uri(activity)
+        return RenderedChart(bitmap, ShareProvider.uri(activity))
     }
 
     private fun curvePoints(prefs: Prefs, usage: UsageStore): List<DailyPoint> {

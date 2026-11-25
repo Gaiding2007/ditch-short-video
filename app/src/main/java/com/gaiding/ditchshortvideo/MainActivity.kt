@@ -26,6 +26,8 @@ import com.gaiding.ditchshortvideo.data.MonitoredApps
 import com.gaiding.ditchshortvideo.data.PlanEngine
 import com.gaiding.ditchshortvideo.data.Prefs
 import com.gaiding.ditchshortvideo.data.UsageStore
+import com.gaiding.ditchshortvideo.monitor.Guardian
+import com.gaiding.ditchshortvideo.monitor.KeepAliveService
 import com.gaiding.ditchshortvideo.monitor.MonitorRuntime
 import com.gaiding.ditchshortvideo.system.SystemStatus
 import com.gaiding.ditchshortvideo.ui.ProgressRingView
@@ -69,6 +71,9 @@ class MainActivity : Activity() {
     override fun onResume() {
         super.onResume()
         PlanEngine.applyToday(prefs, usage)
+        Guardian.ensureChannels(this)
+        Guardian.schedule(this)
+        if (SystemStatus.accessibilityEnabled(this)) KeepAliveService.start(this)
         refresh(forcePreparation = true)
         handler.removeCallbacks(ticker)
         handler.post(ticker)

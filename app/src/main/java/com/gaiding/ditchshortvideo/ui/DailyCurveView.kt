@@ -196,7 +196,9 @@ class DailyCurveView @JvmOverloads constructor(
             )
         }
         val step = niceStep(maxValue)
-        val yMax = max(step, ceil(maxValue / step) * step)
+        // Keep at least four axis units so a new/empty chart does not show
+        // duplicate "0 0 1 2 2" labels after integer rounding.
+        val yMax = max(4f, max(step, ceil(maxValue / step) * step))
         val chartHeightPx = chartBottom - topPad
         fun yFor(value: Float): Float = chartBottom - (value / yMax) * chartHeightPx
         fun xFor(index: Int): Float = leftPad + index * columnWidth + columnWidth / 2f

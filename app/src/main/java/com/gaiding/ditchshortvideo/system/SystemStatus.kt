@@ -90,6 +90,38 @@ object SystemStatus {
         return mark.contains("xiaomi") || mark.contains("redmi") || mark.contains("poco")
     }
 
+    fun isOppo(): Boolean {
+        val mark = "${Build.MANUFACTURER} ${Build.BRAND}".lowercase()
+        return mark.contains("oppo") || mark.contains("oneplus") || mark.contains("realme")
+    }
+
+    /** ColorOS puts auto-start in different activities across versions; try the known ones. */
+    fun openAutoStartSettings(context: Context) {
+        val candidates = listOf(
+            ComponentName(
+                "com.coloros.safecenter",
+                "com.coloros.safecenter.permission.startup.StartupAppListActivity"
+            ),
+            ComponentName(
+                "com.oplus.safecenter",
+                "com.oplus.safecenter.permission.startup.StartupAppListActivity"
+            ),
+            ComponentName(
+                "com.coloros.oppoguardelf",
+                "com.coloros.powermanager.fuelgaue.PowerUsageModelActivity"
+            ),
+            ComponentName(
+                "com.oplus.battery",
+                "com.oplus.battery.ui.BatteryActivity"
+            )
+        )
+        for (component in candidates) {
+            val intent = Intent().setComponent(component)
+            if (open(context, intent)) return
+        }
+        openAppDetails(context)
+    }
+
     private fun open(context: Context, intent: Intent): Boolean {
         intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
         return runCatching {

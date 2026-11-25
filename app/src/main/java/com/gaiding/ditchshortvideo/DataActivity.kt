@@ -10,6 +10,7 @@ import android.view.Gravity
 import android.view.View
 import android.view.ViewGroup
 import android.widget.HorizontalScrollView
+import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.ScrollView
 import android.widget.TextView
@@ -43,6 +44,7 @@ class DataActivity : Activity() {
     private lateinit var weekSummary: TextView
 
     private var selectedGoal = 30
+    private var chartPreview: ChartShare.RenderedChart? = null
     private var curveScrolled = false
     private var heatScrolled = false
     private var pendingImport: Uri? = null
@@ -118,10 +120,44 @@ class DataActivity : Activity() {
             Ui.colorOf(this, R.color.accent_deep)
         ).apply {
             contentDescription = "分享每日曲线图片"
-            setOnClickListener { ChartShare.share(this@DataActivity, prefs, usage) }
+            setOnClickListener { showSharePreview() }
         }
         row.addView(share)
         return row
+    }
+
+    private fun showSharePreview() {
+        val chart = ChartShare.create(this, prefs, usage) ?: return
+        chartPreview?.bitmap?.recycle()
+        chartPreview = chart
+
+        val image = ImageView(this).apply {
+            setImageBitmap(chart.bitmap)
+            adjustViewBounds = true
+            scaleType = ImageView.ScaleType.FIT_CENTER
+            setBackgroundColor(Ui.colorOf(this@DataActivity, R.color.surface))
+            setPadding(
+                Ui.dp(this@DataActivity, 12), Ui.dp(this@DataActivity, 12),
+                Ui.dp(this@DataActivity, 12), Ui.dp(this@DataActivity, 12)
+            )
+        }
+        val dialog = AlertDialog.Builder(this)
+            .setTitle("分享图预览")
+            .setView(image)
+            .setNegativeButton("取消", null)
+            .setPositiveButton("分享", null)
+            .create()
+        dialog.setOnShowListener {
+            dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener {
+                ChartShare.share(this, chart.uri)
+                dialog.dismiss()
+            }
+        }
+        dialog.setOnDismissListener {
+            chart.bitmap.recycle()
+            if (chartPreview === chart) chartPreview = null
+        }
+        dialog.show()
     }
 
     private fun buildWeekCard(): View {
