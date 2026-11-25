@@ -130,6 +130,11 @@ app/src/main/java/com/gaiding/ditchshortvideo/
 - 28/28 页面规则自检通过；设置页不再有“发送测试”，诊断页不再有超级岛实验开关/测试按钮。
 - 截图更新：`home.png`、`data.png`、`plan.png`、`backup.png`、`share.png`、`diagnostics.png`、`settings.png`。
 
+#### 发布
+
+- GitHub Release：`v0.2.2`，release id `458313355`；APK asset id `792112300`，`ditch-short-video-0.2.2.apk`，757,664 字节。
+- 下载：https://github.com/Gaiding2007/ditch-short-video/releases/download/v0.2.2/ditch-short-video-0.2.2.apk
+
 #### 已知限制
 
 - 分享图是静态 PNG，不含按 App 分曲线；一次只导出最近 30 天。图例中的“计划”在未启用计划时仍显示，但曲线不画虚线。
