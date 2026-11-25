@@ -154,6 +154,13 @@ app/src/main/java/com/gaiding/ditchshortvideo/
 2. 若 ColorOS 仍频繁清理，再评估引导用户把 App 加入“允许后台运行/自启动/最近任务锁定”，而不是继续加隐蔽保活。
 3. 观察分享预览弹窗在窄屏、大字体下的按钮布局。
 
+#### 发布
+
+- GitHub Release：`v0.2.3`，release id `458340598`；APK asset id `792214374`，`ditch-short-video-0.2.3.apk`，766,428 字节。
+- 下载：https://github.com/Gaiding2007/ditch-short-video/releases/download/v0.2.3/ditch-short-video-0.2.3.apk
+- release 签名与 0.2.2 相同，可直接覆盖升级；模拟器 release 安装后 28/28 通过。
+- 说明：OPPO / ColorOS 真机尚未实测，保活效果只能按“降低被清理概率 + 尽快提醒 + 一键恢复”描述，不能承诺 100% 不断开。
+
 ### 0.2.2 — 2026-11-25
 
 数据工具版。用户（m03754）提出六项：控制计划时长点不动；“我的数据”独立成页、不要主页下滑才能找到；图表图片分享；本地备份/导出；小米超级岛正常、设置里的相关测试可删；版本号 0.2.2。
