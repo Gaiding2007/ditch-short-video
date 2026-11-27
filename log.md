@@ -138,6 +138,12 @@ app/src/main/java/com/gaiding/ditchshortvideo/
 - 不重新加入前台服务或常驻通知；如果 ColorOS 仍频繁断开，只能继续优化 watchdog、保活引导和恢复路径，不能绕过系统安全模型。
 - 下一步建议在真实 OPPO / 一加设备上观察 0.2.4 的断开频率，再决定是否需要更积极的提醒策略。
 
+#### 发布
+
+- GitHub Release：`v0.2.4`（release id `460555514`）。
+- APK：asset id `800349272`，`ditch-short-video-0.2.4.apk`，761,448 字节。
+- 下载：<https://github.com/Gaiding2007/ditch-short-video/releases/download/v0.2.4/ditch-short-video-0.2.4.apk>
+
 ### 0.2.3 — 2026-11-26
 
 分享预览与后台守护版。用户（m05916）提出：分享图应先有预览；版本号 0.2.3；OPPO 用户反馈 ColorOS 经常把页面识别/后台断掉，碎片化刷视频时大部分时间监测不到，希望克服。用户同时肯定整体好用。
