@@ -13,10 +13,8 @@ class GuardReceiver : BroadcastReceiver() {
         Guardian.schedule(context)
 
         if (SystemStatus.accessibilityEnabled(context)) {
-            KeepAliveService.start(context)
             if (!MonitorRuntime.state.connected) Guardian.notifyDisconnected(context)
         } else {
-            KeepAliveService.stop(context)
             if (prefs.guardArmed) Guardian.notifyDisconnected(context)
         }
     }

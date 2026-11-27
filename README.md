@@ -4,7 +4,7 @@
 
 一个只在**真正刷短视频**时计时的 Android 应用。到了自己设定的每日额度，它只提醒一次，不锁机、不关 App、不上传数据。
 
-中文名：**扔掉短视频**　英文名/仓库名：**ditch-short-video**　当前版本：**0.2.3**（内测）
+中文名：**扔掉短视频**　英文名/仓库名：**ditch-short-video**　当前版本：**0.2.4**（内测）
 
 [项目日志](log.md) · [GitHub 仓库](https://github.com/Gaiding2007/ditch-short-video) · [下载 APK](https://github.com/Gaiding2007/ditch-short-video/releases/latest)
 
@@ -51,8 +51,8 @@
 - **平滑曲线与触摸浮标**：每日曲线用平滑曲线连接数据点，点上显示分钟标签；轻触任意点会弹出小标签，显示具体日期、实际时长和计划额度。
 - **自动控制计划**：选一个希望控制到的目标时长（15–120 分钟）；积累 3 天记录后，生成 14 天从当前水平滑向目标、带轻微噪声的计划曲线，并自动把每日额度设为计划值。前 3 天先维持现状，之后逐步调整；目标档位可直接点选，已启用后也可按新目标更新或关闭。
 - **导出分享图**：数据页右上角“分享图”把最近 30 天曲线渲染成一张 1440px 的 PNG；0.2.3 起先弹预览，确认后再交给系统分享面板，不申请存储权限。
-- **后台守护（尽力而为）**：0.2.3 起用 `specialUse` 前台服务 + 15 分钟 watchdog 降低 ColorOS 清理概率；页面识别断开时发可点击通知。Android 不允许普通 App 自行重开无障碍，被强行停止后仍需用户点一次，不能承诺 100% 不被杀。
-- **本地备份**：数据页可把设置、监控 App、计划状态和每日记录导出为 JSON，也能从 JSON 恢复；文件位置由系统文件选择器决定，导入会覆盖当前数据。
+- **后台守护（尽力而为）**：0.2.4 起不再使用前台服务和常驻通知，只保留 15 分钟 watchdog、断开提醒和 ColorOS 保活引导，避免通知栏一直挂着“页面识别守护中”。Android 不允许普通 App 自行重开无障碍，被强行停止后仍需用户点一次；没有前台服务后，后台存活能力会比 0.2.3 弱。
+- **本地备份**：设置页可把设置、监控 App、计划状态和每日记录导出为 JSON，也能从 JSON 恢复；文件位置由系统文件选择器决定，导入会覆盖当前数据。
 - **类 GitHub 小绿点**：数据页年度热力图，颜色越深代表当天刷得越久；今天有描边，未来日期淡灰。
 - **数据只在本地**：没有账号、没有云同步，App 没有申请联网权限。
 - **断开提醒**：页面识别被系统关闭或服务中断时，发一条可点击的通知，点按直接跳到系统无障碍设置；重新连接后自动收起。
@@ -83,14 +83,14 @@
 
 ## 安装
 
-0.1.0 起使用 **release 签名**，0.2.0 起的 APK 文件名带版本号，例如 `ditch-short-video-0.2.3.apk`；可以从 [GitHub Releases](https://github.com/Gaiding2007/ditch-short-video/releases/latest) 下载，也可以本地构建：
+0.1.0 起使用 **release 签名**，0.2.0 起的 APK 文件名带版本号，例如 `ditch-short-video-0.2.4.apk`；可以从 [GitHub Releases](https://github.com/Gaiding2007/ditch-short-video/releases/latest) 下载，也可以本地构建：
 
 ```powershell
 # 在项目根目录构建（首次会下载 Gradle 8.14）
 .\gradlew.bat :app:assembleRelease
 
 # 产物（另有兼容用的 app-release.apk）
-# app\build\outputs\apk\release\ditch-short-video-0.2.3.apk
+# app\build\outputs\apk\release\ditch-short-video-0.2.4.apk
 ```
 
 本地构建 release 需要 `keystore/release.properties` 和 `keystore/ditch-release.jks`；这两个文件已被 `.gitignore` 排除，不随仓库分发。
@@ -132,9 +132,8 @@
 | 权限 | 用途 |
 | --- | --- |
 | `BIND_ACCESSIBILITY_SERVICE` | 读取当前页面结构，判断是否短视频页面 |
-| `POST_NOTIFICATIONS` | 超时提醒、计时中的倒计时、后台守护通知 |
+| `POST_NOTIFICATIONS` | 超时提醒、计时中的倒计时、断线提醒 |
 | `POST_PROMOTED_NOTIFICATIONS` | Android 16 上请求 promoted ongoing（超级岛/实时更新） |
-| `FOREGROUND_SERVICE` / `FOREGROUND_SERVICE_SPECIAL_USE` | 0.2.3 起的前台守护服务 |
 | `RECEIVE_BOOT_COMPLETED` | 开机重建 15 分钟 watchdog |
 | `REQUEST_IGNORE_BATTERY_OPTIMIZATIONS` | 跳转系统省电设置，降低后台被清理概率 |
 | `VIBRATE` | 提醒振动 |
@@ -150,11 +149,12 @@
 - B 站首次进入故事页的修复基于“故事标题 + 视频画面 + 8 秒重抓”；真实 B 站版本若改掉 `story_title` 或改用其他播放器，仍可能失效。遇到漏计，请到诊断页复制 Activity/识别原因反馈。
 - 0.1.0 起使用 release 签名，可做小范围内测；仍未做应用商店上架、隐私政策和正式商店资料。
 - 一加/ColorOS 的页面事件有时不提供 Activity 类名；0.1.1 已对抖音/快手增加强页面证据兜底，并在诊断页记录最近事件；0.1.2 进一步把 SystemUI/输入法覆盖窗口与真实切 App 区分开，并保留 3 秒。若仍漏计，请复制诊断信息，重点看“最近事件”里是否还有 Activity 为空、覆盖窗口切换或服务断开。
-- “强行停止”App 会同时停掉无障碍服务和守护闹钟；ColorOS 清理后仍需用户打开一次 App 或无障碍设置。0.2.3 已加入 `specialUse` 前台服务、15 分钟 watchdog、断线通知和 OPPO 保活引导，只能降低断开概率，不能绕过系统安全模型。
+- “强行停止”App 会同时停掉无障碍服务和守护闹钟；ColorOS 清理后仍需用户打开一次 App 或无障碍设置。0.2.4 移除了前台服务，只保留 15 分钟 watchdog、断线通知和 OPPO 保活引导，后台存活能力比 0.2.3 弱，不能绕过系统安全模型。
 - 计时中的倒计时是 LOW 重要度静默通知，不会响铃或震动；下拉通知栏可见，暂停后 3 秒收起。
 
 ## 版本
 
+- `0.2.4` — 2026-11-27：移除“页面识别守护中”常驻通知和对应的 `specialUse` 前台服务，保留 15 分钟 watchdog 与断线提醒；删除设置页额度卡，把 JSON 备份/导入迁到设置；删除首页“你的数据”卡，只保留右上角“数据”入口；版本 0.2.4。后台存活能力比 0.2.3 弱，OPPO/ColorOS 仍需手动保活。
 - `0.2.3` — 2026-11-26：分享图先预览再分享；新增 `specialUse` 前台守护服务、15 分钟断线 watchdog、断线通知和 OPPO/ColorOS 保活引导；版本 0.2.3。系统仍不允许自动重开无障碍，只能降低断开概率并缩短恢复路径。
 - `0.2.2` — 2026-11-25：修复控制计划时长点不动；首页右上角新增“数据”入口；数据页新增分享图和本地 JSON 备份/导入；移除设置/诊断里的小米超级岛测试入口；版本 0.2.2。
 - `0.2.1` — 2026-11-23：每日曲线改为平滑曲线；点上增加分钟标签；触摸点弹出日期/实际时长/计划额度小浮标；触摸横向拖动不抢滚动；版本 0.2.1。

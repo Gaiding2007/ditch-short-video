@@ -2,8 +2,8 @@
 
 > 仓库：<https://github.com/Gaiding2007/ditch-short-video>
 > 包名：`com.gaiding.ditchshortvideo`
-> 当前版本：`0.2.3`（versionCode `23`）
-> 当前阶段：0.2.3 分享预览与后台守护版；分享图先弹预览再分享；新增前台守护服务、15 分钟断线 watchdog、断开提醒与 OPPO/ColorOS 保活引导。
+> 当前版本：`0.2.4`（versionCode `24`）
+> 当前阶段：0.2.4 精简版；移除常驻“页面识别守护中”通知与设置页额度卡，备份/导入迁到设置，首页只保留右上角“数据”入口。
 
 ---
 
@@ -30,13 +30,13 @@
 8. **小米超级岛**：优先走 Android 16 的 Promoted Ongoing（`POST_PROMOTED_NOTIFICATIONS` + `requestPromotedOngoing`），系统支持时上岛，不支持时自然回退普通通知。0.2.2 起不再在设置/诊断里暴露测试开关，通知由系统自动处理。
 9. **类 GitHub 小绿点**：数据页展示全年 7 行 × 周的热力图，按当天刷视频时长/额度分 5 档颜色，今天有描边，未来日期淡灰。
 10. **无障碍断开提醒**：页面识别服务被系统中断或销毁时，发一条可点击的通知，点按直接跳到系统无障碍设置；重新连接后自动取消。
-11. **版本与仓库**：当前版本 `0.2.3`，每次改动写本日志，每个版本通过 git 提交并推送 GitHub；APK 同时上传 GitHub Release。
+11. **版本与仓库**：当前版本 `0.2.4`，每次改动写本日志，每个版本通过 git 提交并推送 GitHub；APK 同时上传 GitHub Release。
 12. **独立数据页**：数据从首页拆出，包含最近 7 天摘要、每日曲线、每日明细和年度热力图；首页右上角提供“数据”入口，不必向下滚动。
 13. **每日曲线与控制计划**：每日曲线用平滑曲线标出过去每天的具体时长，点上显示分钟标签；触摸点会弹出小标签，显示具体日期、实际时长和计划额度。用户选择一个希望控制到的目标时长（15–120 分钟），积累至少 3 天记录后，生成 14 天从当前水平滑向目标、带轻微噪声的计划曲线，并自动把每天额度设为计划值。前 3 天先按现有水平，之后逐步下降/上升。目标档位可直接点选；启用后可按新目标更新或关闭。
-14. **APK 命名**：构建后自动复制一份带版本号的 APK，例如 `ditch-short-video-0.2.3.apk` / `ditch-short-video-0.2.3-debug.apk`；GitHub Release 也使用该名字。
-15. **分享图与本地备份**：数据页可把最近 30 天曲线渲染成 PNG 并调用系统分享面板；也可把设置、监控 App、计划状态和每日记录导出为 JSON，或从 JSON 导入恢复（导入覆盖当前数据）。文件由系统文件选择器选择，不上传。
+14. **APK 命名**：构建后自动复制一份带版本号的 APK，例如 `ditch-short-video-0.2.4.apk` / `ditch-short-video-0.2.4-debug.apk`；GitHub Release 也使用该名字。
+15. **分享图与本地备份**：数据页可把最近 30 天曲线渲染成 PNG 并调用系统分享面板；设置页可把设置、监控 App、计划状态和每日记录导出为 JSON，或从 JSON 导入恢复（导入覆盖当前数据）。文件由系统文件选择器选择，不上传。
 16. **分享预览**：0.2.3 起点“分享图”先生成图片并弹出预览，确认后才调用系统分享面板；取消时释放位图。
-17. **后台守护（尽力而为）**：0.2.3 起用 `specialUse` 前台服务 + 15 分钟 AlarmManager watchdog 降低 ColorOS 清理概率；服务断开时发可点击通知。Android 不允许普通 App 自行重新启用无障碍，被强行停止后仍需用户点一次，不能承诺 100% 不被杀。
+17. **后台守护（尽力而为）**：0.2.4 起不再使用前台服务/常驻通知，只保留 15 分钟 AlarmManager watchdog、断开提醒和 ColorOS 保活引导。Android 不允许普通 App 自行重新启用无障碍，被强行停止后仍需用户点一次，不能承诺 100% 不被杀；没有 FGS 后，后台存活能力会比 0.2.3 弱。
 
 ### 0.3 第一版明确不做
 
@@ -68,16 +68,16 @@
 - 仓库带 Gradle Wrapper（Gradle `8.14`，bin 分发）；`gradle.properties` 关闭 vfs watch、Kotlin 采用 in-process 编译。当前沙箱的离线缓存缺少 AGP 的 aapt2，因此本机构建时额外传 `-Pandroid.aapt2FromMavenOverride=D:\applications\SDK\build-tools\36.1.0\aapt2.exe`；普通联网环境无需该参数。
 - `settings.gradle.kts` 用 `resolutionStrategy` 将插件坐标指向本地缓存中的 AGP/Kotlin 构件。
 - 本地没有 JUnit 缓存且外网 Maven 不可达，因此不写 `src/test` 单测；页面规则自检放在 App 内“诊断”页运行，共 28 个纯逻辑用例。
-- APK 输出：debug 为 `app/build/outputs/apk/debug/app-debug.apk`，release 为 `app/build/outputs/apk/release/app-release.apk`；构建结束会自动复制带版本号的 `ditch-short-video-0.2.3.apk` / `ditch-short-video-0.2.3-debug.apk`。0.1.0 起对外分发使用 release APK。
+- APK 输出：debug 为 `app/build/outputs/apk/debug/app-debug.apk`，release 为 `app/build/outputs/apk/release/app-release.apk`；构建结束会自动复制带版本号的 `ditch-short-video-0.2.4.apk` / `ditch-short-video-0.2.4-debug.apk`。0.1.0 起对外分发使用 release APK。
 
 ### 0.5 代码地图
 
 ```
 app/src/main/java/com/gaiding/ditchshortvideo/
 ├── DitchApp.kt                     Application，创建通知渠道
-├── MainActivity.kt                 首页：进度环、准备步骤、App 开关、数据摘要
-├── SettingsActivity.kt             额度、提醒文案、权限、计时规则、清空数据、关于
-├── DataActivity.kt                 独立数据页：每日曲线、控制计划、明细、热力图、分享图、备份/导入
+├── MainActivity.kt                 首页：进度环、准备步骤、App 开关；右上角数据/设置入口
+├── SettingsActivity.kt             提醒文案、权限、计时规则、备份/导入、清空数据、关于
+├── DataActivity.kt                 独立数据页：每日曲线、控制计划、明细、热力图、分享图
 ├── DiagnosticsActivity.kt          运行状态、最近事件、28 项页面规则自检、系统通知信息
 ├── data/
 │   ├── MonitoredApps.kt            5 个 App 元数据
@@ -93,9 +93,8 @@ app/src/main/java/com/gaiding/ditchshortvideo/
 │   ├── PageSnapshot.kt             节点/页面/识别结果模型
 │   ├── MonitorRuntime.kt           运行时状态供 UI 读取
 │   ├── MonitorLog.kt               最近页面/计时事件，诊断页复制
-│   ├── Guardian.kt                 守护通知渠道、15 分钟 watchdog、断开提醒
-│   ├── KeepAliveService.kt         specialUse 前台守护服务
-│   ├── GuardReceiver.kt            watchdog 检查与恢复
+│   ├── Guardian.kt                 断开提醒渠道、15 分钟 watchdog
+│   ├── GuardReceiver.kt            watchdog 检查与断线提醒
 │   ├── BootReceiver.kt             开机重建 watchdog
 │   └── DetectorSelfTest.kt         28 个纯逻辑用例
 ├── notify/
@@ -112,6 +111,32 @@ app/src/main/java/com/gaiding/ditchshortvideo/
 ---
 
 ## 1. 版本记录
+
+### 0.2.4 — 2026-11-27
+
+精简与归位版。用户（m06565）要求：不要“页面识别守护中”常驻通知；版本号 0.2.4；删掉设置里的“调整额度”，把数据页的导入/导出备份移到设置，首页“你的数据”卡删掉，只保留右上角“数据”入口。
+
+#### 功能与修复
+
+- **移除前台守护服务**：删除 `KeepAliveService` 及 `FOREGROUND_SERVICE` / `FOREGROUND_SERVICE_SPECIAL_USE` 权限和 manifest 声明；不再有 `guard_service_v1` 渠道与 id 2100 常驻通知。15 分钟 `AlarmManager` watchdog、断线提醒（id 2101）和 OPPO/ColorOS 保活引导保留。
+- **首页精简**：删除“你的数据”摘要卡、`dataSummary` 与相关刷新逻辑；右上角“数据/设置”入口保留，首页 hero 的“调整额度”仍可用。
+- **设置归位**：删除设置页“每日额度”卡和额度对话框，额度继续在首页 hero 调整；把“备份与导出”卡及 SAF 导出/导入、`onActivityResult` 逻辑从数据页迁到设置页；权限区不再显示依赖 FGS 的“后台守护”行。
+- **数据页精简**：删除备份/导入卡与相关 import；分享图、曲线、控制计划、每日明细、年度热力图保留。
+- **文案**：ColorOS 卡改为“定时检查会尽量提醒你，但不会常驻通知”。
+- **版本**：`versionCode 24` / `versionName 0.2.4`；APK 自动命名 `ditch-short-video-0.2.4.apk` / `ditch-short-video-0.2.4-debug.apk`。
+
+#### 验证
+
+- `:app:assembleDebug` 成功（30s，38 tasks），debug APK 1,031,484 字节；`:app:assembleRelease` 成功（33s，45 tasks），release APK 761,448 字节，签名证书与 0.2.3 相同。
+- API 36 模拟器：首页无“你的数据”卡；`dumpsys activity services` 无 `KeepAliveService`；通知栏没有“页面识别守护中”常驻通知，只剩 `guard_alert_v1` 断线提醒渠道。
+- 设置页无每日额度卡、无“后台守护”行；备份/导出卡可打开 SAF 并成功导出 JSON（682 字节），导入成功提示“已导入 0 天记录”（测试时无每日记录）。
+- 数据页无备份卡，分享预览仍正常；release 包页面规则自检 28/28 通过；版本显示 v0.2.4。
+- OPPO/ColorOS 真机未验证；“无 FGS 后后台存活能力变弱”是已知取舍。
+
+#### 本版不做 / 推荐下一步
+
+- 不重新加入前台服务或常驻通知；如果 ColorOS 仍频繁断开，只能继续优化 watchdog、保活引导和恢复路径，不能绕过系统安全模型。
+- 下一步建议在真实 OPPO / 一加设备上观察 0.2.4 的断开频率，再决定是否需要更积极的提醒策略。
 
 ### 0.2.3 — 2026-11-26
 

@@ -5,6 +5,7 @@ import android.app.AlertDialog
 import android.content.Intent
 import android.content.res.ColorStateList
 import android.graphics.drawable.GradientDrawable
+import android.net.Uri
 import android.os.Bundle
 import android.text.InputFilter
 import android.text.InputType
@@ -17,10 +18,11 @@ import android.widget.LinearLayout
 import android.widget.ScrollView
 import android.widget.Switch
 import android.widget.TextView
+import com.gaiding.ditchshortvideo.data.BackupManager
 import com.gaiding.ditchshortvideo.data.DayUtils
+import com.gaiding.ditchshortvideo.data.PlanEngine
 import com.gaiding.ditchshortvideo.data.Prefs
 import com.gaiding.ditchshortvideo.data.UsageStore
-import com.gaiding.ditchshortvideo.monitor.KeepAliveService
 import com.gaiding.ditchshortvideo.notify.ReminderNotifier
 import com.gaiding.ditchshortvideo.system.SystemStatus
 import com.gaiding.ditchshortvideo.ui.Ui
@@ -29,12 +31,12 @@ import kotlin.math.max
 class SettingsActivity : Activity() {
     private lateinit var prefs: Prefs
     private lateinit var usage: UsageStore
-    private lateinit var limitValue: TextView
     private lateinit var reminderSwitch: Switch
     private lateinit var titleInput: EditText
     private lateinit var bodyInput: EditText
     private lateinit var preview: TextView
     private lateinit var permissionsContainer: LinearLayout
+    private var pendingImport: Uri? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -45,7 +47,6 @@ class SettingsActivity : Activity() {
 
     override fun onResume() {
         super.onResume()
-        refreshLimit()
         refreshPermissions()
     }
 
@@ -66,12 +67,12 @@ class SettingsActivity : Activity() {
         Ui.edgeToEdge(this, content)
 
         content.addView(buildHeader())
-        content.addView(buildLimitCard(), topMargin(16))
-        content.addView(buildReminderCard(), topMargin(14))
+        content.addView(buildReminderCard(), topMargin(16))
         content.addView(buildPermissionsCard(), topMargin(14))
         if (SystemStatus.isOppo()) content.addView(buildColorOsCard(), topMargin(14))
         content.addView(buildRulesCard(), topMargin(14))
         content.addView(buildDataCard(), topMargin(14))
+        content.addView(buildBackupCard(), topMargin(14))
         content.addView(buildAboutCard(), topMargin(14))
         content.addView(
             Ui.text(this, "v${BuildConfig.VERSION_NAME} · 数据只在本机", 10f, Ui.colorOf(this, R.color.ink_faint))
@@ -96,32 +97,6 @@ class SettingsActivity : Activity() {
             LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f)
         )
         return row
-    }
-
-    private fun buildLimitCard(): View {
-        val card = Ui.card(this)
-        card.addView(
-            Ui.sectionHeader(
-                this,
-                "每日额度",
-                "每天 0 点重置。五个 App 合并计算。"
-            )
-        )
-        val row = Ui.row(this)
-        limitValue = Ui.text(this, "", 30f, Ui.colorOf(this, R.color.accent_deep), bold = true)
-        row.addView(
-            limitValue,
-            LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f)
-        )
-        val edit = Ui.ghostButton(this, "修改额度")
-        edit.setOnClickListener { showLimitDialog() }
-        row.addView(edit)
-        card.addView(row, topMargin(10))
-        card.addView(
-            Ui.text(this, "到点只提醒一次，不会强制锁机或关闭 App。", 11f, Ui.colorOf(this, R.color.ink_soft)),
-            topMargin(6)
-        )
-        return card
     }
 
     private fun buildReminderCard(): View {
@@ -269,7 +244,7 @@ class SettingsActivity : Activity() {
         card.addView(
             Ui.text(
                 this,
-                "系统不让 App 自己重新打开无障碍；如果被强行停止，仍需回来点一次。前台守护会尽量让它不被停。",
+                "系统不让 App 自己重新打开无障碍；如果被强行停止，仍需回来点一次。定时检查会尽量提醒你，但不会常驻通知。",
                 10f,
                 Ui.colorOf(this, R.color.ink_faint)
             ),
@@ -333,8 +308,93 @@ class SettingsActivity : Activity() {
         return card
     }
 
-    private fun buildAboutCard(): View {
+    private fun buildBackupCard(): View {
         val card = Ui.card(this)
+        card.addView(
+            Ui.sectionHeader(
+                this,
+                "备份与导出",
+                "导出包含设置和每日记录的 JSON；导入会覆盖当前数据。"
+            )
+        )
+        val actions = Ui.row(this)
+        val export = Ui.button(this, "导出备份", primary = false).apply {
+            setOnClickListener { pickExport() }
+        }
+        actions.addView(export, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
+        val import = Ui.button(this, "导入备份", primary = false).apply {
+            setOnClickListener { pickImport() }
+        }
+        val importParams = LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f)
+        importParams.leftMargin = Ui.dp(this, 8)
+        actions.addView(import, importParams)
+        card.addView(actions, topMargin(12))
+        card.addView(
+            Ui.text(this, "文件由你选择保存位置，不会上传；建议同时留一份到电脑。", 10f, Ui.colorOf(this, R.color.ink_faint)),
+            topMargin(8)
+        )
+        return card
+    }
+
+    private fun pickExport() {
+        val intent = Intent(Intent.ACTION_CREATE_DOCUMENT).apply {
+            addCategory(Intent.CATEGORY_OPENABLE)
+            type = "application/json"
+            putExtra(Intent.EXTRA_TITLE, BackupManager.suggestedName())
+        }
+        startActivityForResult(intent, REQUEST_EXPORT)
+    }
+
+    private fun pickImport() {
+        val intent = Intent(Intent.ACTION_OPEN_DOCUMENT).apply {
+            addCategory(Intent.CATEGORY_OPENABLE)
+            type = "*/*"
+            putExtra(
+                Intent.EXTRA_MIME_TYPES,
+                arrayOf("application/json", "text/plain", "application/octet-stream")
+            )
+        }
+        startActivityForResult(intent, REQUEST_IMPORT)
+    }
+
+    @Deprecated("Deprecated in Java")
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+        super.onActivityResult(requestCode, resultCode, data)
+        if (resultCode != RESULT_OK) return
+        val uri = data?.data ?: return
+        when (requestCode) {
+            REQUEST_EXPORT -> {
+                val ok = BackupManager.export(this, prefs, usage, uri)
+                Ui.toast(this, if (ok) "备份已导出" else "导出失败，请换个位置再试")
+            }
+            REQUEST_IMPORT -> {
+                pendingImport = uri
+                AlertDialog.Builder(this)
+                    .setTitle("导入备份？")
+                    .setMessage("会覆盖当前设置和所有每日记录。导入后可在数据页检查。")
+                    .setNegativeButton("取消", null)
+                    .setPositiveButton("导入") { _, _ ->
+                        val source = pendingImport
+                        pendingImport = null
+                        if (source == null) return@setPositiveButton
+                        try {
+                            val result = BackupManager.import(this, prefs, usage, source)
+                            PlanEngine.applyToday(prefs, usage)
+                            titleInput.setText(prefs.reminderTitle)
+                            bodyInput.setText(prefs.reminderBody)
+                            refreshPreview()
+                            refreshPermissions()
+                            Ui.toast(this, "已导入 ${result.days} 天记录")
+                        } catch (e: Exception) {
+                            Ui.toast(this, e.message ?: "导入失败")
+                        }
+                    }
+                    .show()
+            }
+        }
+    }
+
+    private fun buildAboutCard(): View {        val card = Ui.card(this)
         card.addView(Ui.sectionHeader(this, "关于", "扔掉短视频 · 把时间拿回来"))
         card.addView(aboutRow("诊断与页面规则", "查看识别状态，运行规则自检") {
             startActivity(Intent(this, DiagnosticsActivity::class.java))
@@ -369,10 +429,6 @@ class SettingsActivity : Activity() {
         return row
     }
 
-    private fun refreshLimit() {
-        limitValue.text = "${prefs.dailyLimitMinutes} 分钟"
-    }
-
     private fun refreshPermissions() {
         if (!::permissionsContainer.isInitialized) return
         permissionsContainer.removeAllViews()
@@ -391,18 +447,6 @@ class SettingsActivity : Activity() {
             "避免计时服务被系统清理",
             SystemStatus.batteryUnrestricted(this)
         ) { SystemStatus.openBatterySettings(this) }
-        permissionRow(
-            "后台守护",
-            "前台服务尽量保持页面识别，断开时可提醒",
-            KeepAliveService.running
-        ) {
-            if (SystemStatus.accessibilityEnabled(this)) {
-                KeepAliveService.start(this)
-                Ui.toast(this, "守护服务已启动")
-            } else {
-                SystemStatus.openAccessibilitySettings(this)
-            }
-        }
     }
 
     private fun permissionRow(
@@ -448,52 +492,6 @@ class SettingsActivity : Activity() {
         }
         row.addView(actionText)
         permissionsContainer.addView(row)
-    }
-
-    private fun showLimitDialog() {
-        val box = Ui.column(this).apply {
-            setPadding(Ui.dp(this@SettingsActivity, 22), Ui.dp(this@SettingsActivity, 4),
-                Ui.dp(this@SettingsActivity, 22), 0)
-        }
-        val input = editText(singleLine = true).apply {
-            inputType = InputType.TYPE_CLASS_NUMBER
-            filters = arrayOf(InputFilter.LengthFilter(4))
-            setText(prefs.dailyLimitMinutes.toString())
-            setSelection(text.length)
-        }
-        box.addView(input, topMargin(8))
-        val note = Ui.text(
-            this,
-            "1 – ${Prefs.MAX_LIMIT} 分钟。每天 0 点重置。",
-            11f,
-            Ui.colorOf(this, R.color.ink_soft)
-        )
-        box.addView(note, topMargin(8))
-
-        val dialog = AlertDialog.Builder(this)
-            .setTitle("每天最多看多久")
-            .setView(box)
-            .setNegativeButton("取消", null)
-            .setPositiveButton("保存", null)
-            .create()
-        dialog.setOnShowListener {
-            dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener {
-                val value = input.text.toString().toIntOrNull()
-                if (value == null || value !in Prefs.MIN_LIMIT..Prefs.MAX_LIMIT) {
-                    input.error = "请输入 1 – ${Prefs.MAX_LIMIT} 之间的整数"
-                    return@setOnClickListener
-                }
-                prefs.dailyLimitMinutes = value
-                if (prefs.planEnabled) {
-                    prefs.clearPlan()
-                    Ui.toast(this, "已手动修改额度，自动计划已关闭")
-                }
-                refreshLimit()
-                refreshPreview()
-                dialog.dismiss()
-            }
-        }
-        dialog.show()
     }
 
     private fun saveReminderText(showToast: Boolean): Boolean {
@@ -589,4 +587,9 @@ class SettingsActivity : Activity() {
             ViewGroup.LayoutParams.MATCH_PARENT,
             ViewGroup.LayoutParams.WRAP_CONTENT
         ).also { it.topMargin = Ui.dp(this, dp) }
+
+    private companion object {
+        const val REQUEST_EXPORT = 1001
+        const val REQUEST_IMPORT = 1002
+    }
 }

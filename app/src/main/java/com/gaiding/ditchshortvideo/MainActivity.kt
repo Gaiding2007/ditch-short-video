@@ -27,7 +27,6 @@ import com.gaiding.ditchshortvideo.data.PlanEngine
 import com.gaiding.ditchshortvideo.data.Prefs
 import com.gaiding.ditchshortvideo.data.UsageStore
 import com.gaiding.ditchshortvideo.monitor.Guardian
-import com.gaiding.ditchshortvideo.monitor.KeepAliveService
 import com.gaiding.ditchshortvideo.monitor.MonitorRuntime
 import com.gaiding.ditchshortvideo.system.SystemStatus
 import com.gaiding.ditchshortvideo.ui.ProgressRingView
@@ -49,7 +48,6 @@ class MainActivity : Activity() {
     private lateinit var statusDetail: TextView
     private lateinit var preparationContainer: LinearLayout
     private lateinit var appsContainer: LinearLayout
-    private lateinit var dataSummary: TextView
 
     private var preparationSignature = ""
 
@@ -73,7 +71,6 @@ class MainActivity : Activity() {
         PlanEngine.applyToday(prefs, usage)
         Guardian.ensureChannels(this)
         Guardian.schedule(this)
-        if (SystemStatus.accessibilityEnabled(this)) KeepAliveService.start(this)
         refresh(forcePreparation = true)
         handler.removeCallbacks(ticker)
         handler.post(ticker)
@@ -127,7 +124,6 @@ class MainActivity : Activity() {
         content.addView(buildStatusStrip(), topMargin(10))
         content.addView(buildPreparationCard(), topMargin(14))
         content.addView(buildAppsCard(), topMargin(14))
-        content.addView(buildDataCard(), topMargin(14))
         content.addView(buildFooter(), topMargin(22))
         return root
     }
@@ -339,27 +335,6 @@ class MainActivity : Activity() {
         parent.addView(divider, params)
     }
 
-    private fun buildDataCard(): View {
-        val card = Ui.card(this)
-        card.addView(
-            Ui.sectionHeader(
-                this,
-                "你的数据",
-                "每天的具体时长、计划曲线和年度热力图，都放在单独的数据页。"
-            )
-        )
-        dataSummary = Ui.text(this, "", 12f, Ui.colorOf(this, R.color.ink_soft))
-        card.addView(dataSummary, topMargin(8))
-
-        val open = Ui.button(this, "查看每日曲线与计划", primary = true).apply {
-            setOnClickListener {
-                startActivity(Intent(this@MainActivity, DataActivity::class.java))
-            }
-        }
-        card.addView(open, topMargin(12))
-        return card
-    }
-
     private fun buildFooter(): View {
         val box = Ui.column(this)
         box.addView(
@@ -378,7 +353,6 @@ class MainActivity : Activity() {
         refreshData()
         refreshStatus()
         refreshPreparation(forcePreparation)
-        refreshDataSummary()
     }
 
     private fun refreshData() {
@@ -528,23 +502,6 @@ class MainActivity : Activity() {
         }
         row.addView(button)
         preparationContainer.addView(row)
-    }
-
-    private fun refreshDataSummary() {
-        val week = usage.recentDays(7)
-        val total = week.sumOf { it.seconds }
-        val days = week.count { it.seconds > 0L }
-        val state = PlanEngine.state(prefs, usage)
-        val base = if (total == 0L) {
-            "最近 7 天还没有记录。"
-        } else {
-            "最近 7 天 ${DayUtils.humanDuration(total)} · $days 天有记录。"
-        }
-        dataSummary.text = if (state.enabled) {
-            "$base\n自动计划：目标 ${state.goalMinutes} 分钟 · 今天额度 ${state.todayLimit} 分钟"
-        } else {
-            "$base\n还没有启用自动计划。"
-        }
     }
 
     private fun showLimitDialog() {

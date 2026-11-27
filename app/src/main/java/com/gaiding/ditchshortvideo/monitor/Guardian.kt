@@ -16,16 +16,13 @@ import com.gaiding.ditchshortvideo.R
 import com.gaiding.ditchshortvideo.system.SystemStatus
 
 /**
- * Best-effort ColorOS survival: a foreground service keeps the process warm,
- * and a 15-minute alarm posts a recovery notification if the system cuts it.
- *
- * Android does not allow an app to re-enable its own accessibility service.
- * If the OS force-stops the app, the user still has to open it once.
+ * Best-effort survival without a persistent foreground notification: a 15-minute
+ * alarm checks whether accessibility is still connected and posts a recovery
+ * notification if the system has cut it. Android does not allow an app to
+ * re-enable its own accessibility service, so a force-stop still needs one tap.
  */
 object Guardian {
-    const val CHANNEL_SERVICE = "guard_service_v1"
     const val CHANNEL_ALERT = "guard_alert_v1"
-    const val SERVICE_ID = 2100
     const val ALERT_ID = 2101
 
     private const val INTERVAL_MS = 15 * 60 * 1000L
@@ -33,20 +30,6 @@ object Guardian {
 
     fun ensureChannels(context: Context) {
         val manager = context.getSystemService(NotificationManager::class.java) ?: return
-        if (manager.getNotificationChannel(CHANNEL_SERVICE) == null) {
-            manager.createNotificationChannel(
-                NotificationChannel(
-                    CHANNEL_SERVICE,
-                    context.getString(R.string.guard_channel_name),
-                    NotificationManager.IMPORTANCE_LOW
-                ).apply {
-                    description = context.getString(R.string.guard_channel_description)
-                    setShowBadge(false)
-                    enableVibration(false)
-                    lockscreenVisibility = Notification.VISIBILITY_PUBLIC
-                }
-            )
-        }
         if (manager.getNotificationChannel(CHANNEL_ALERT) == null) {
             manager.createNotificationChannel(
                 NotificationChannel(
